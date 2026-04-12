@@ -6,6 +6,69 @@
         "region": "colombia"
     },
     {
+        "name": "Impacto TIC (Colombia)",
+        "url": "https://impactotic.co/feed/",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "Forbes Colombia (AI/Tech)",
+        "url": "https://forbes.co/category/tecnologia/feed/",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "El Colombiano - Tecnología",
+        "url": "https://www.elcolombiano.com/feeds/rss/tecnologia.xml",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "La República - TI",
+        "url": "https://www.larepublica.co/rss/tecnologia",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "La FM - Tecnología",
+        "url": "https://www.lafm.com.co/tecnologia/feed/",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "Noticias Caracol - Tecnología",
+        "url": "https://noticias.caracoltv.com/tecnologia",
+        "type": "dynamic",
+        "region": "colombia",
+        "selectors": {
+            "container": "h2.Card-title",
+            "title": "a",
+            "link": "a"
+        }
+    },
+    {
+        "name": "Canal Trece - Tecnología",
+        "url": "https://canaltrece.com.co/tecnologia-y-videojuegos",
+        "type": "dynamic",
+        "region": "colombia",
+        "selectors": {
+            "container": "div.noticia-item",
+            "title": "h3",
+            "link": "a"
+        }
+    },
+    {
+        "name": "Cambio Colombia - Tech",
+        "url": "https://cambiocolombia.com/tecnologia",
+        "type": "dynamic",
+        "region": "colombia",
+        "selectors": {
+            "container": "div.article-card",
+            "title": "h2",
+            "link": "a"
+        }
+    },
+    {
         "name": "TechCrunch AI",
         "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
         "type": "rss",
@@ -22,11 +85,5 @@
         "url": "https://www.xataka.com/feed",
         "type": "rss",
         "region": "global"
-    },
-    {
-        "name": "Impacto TIC (Colombia)",
-        "url": "https://impactotic.co/feed/",
-        "type": "rss",
-        "region": "colombia"
     }
 ]

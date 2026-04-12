@@ -15,7 +15,7 @@ class SourceConfig:
             self.selectors = {}
         
         # Validación de integridad lógica
-        if self.type not in ["rss", "html"]:
+        if self.type not in ["rss", "html", "dynamic"]:
             raise ValueError(f"Tipo desconocido '{self.type}' en la fuente {self.name}")
 
 @dataclass

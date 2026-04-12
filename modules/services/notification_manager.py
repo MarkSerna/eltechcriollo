@@ -94,8 +94,9 @@ class NotificationManager:
             # Construir el pie de página (Caption)
             caption = (
                 f"📰 *{article.title}*\n\n"
-                f"🧠 *El Dev Criollo dice:*\n_{article.ai_comment}_\n\n"
-                f"🔗 [Leer noticia completa]({article.link})"
+                f"📝 *Resumen del Analista:*\n{article.ai_comment}\n\n"
+                f"📍 *Fuente:* {article.source_name}\n"
+                f"🔗 [Leer noticia original]({article.link})"
             )
             
             payload = {

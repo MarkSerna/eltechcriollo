@@ -18,13 +18,14 @@ class DatabaseManager:
             return None
 
     def initialize_schema(self) -> None:
-        """Inicializa la base de datos y crea la tabla si no existe."""
+        """Inicializa la base de datos y aplica migraciones automáticas si falta alguna columna."""
         conn = self._get_connection()
         if not conn:
             return
             
         try:
             with conn:
+                # 1. Crear tabla base (si no existe)
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS articles (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,9 +39,19 @@ class DatabaseManager:
                         processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
+                
+                # 2. MIGRACIÓN: Verificar si falta la columna image_url (para DBs antiguas)
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(articles)")
+                columns = [info[1] for info in cursor.fetchall()]
+                
+                if 'image_url' not in columns:
+                    logger.info("🛠 Migrando base de datos: Añadiendo columna 'image_url'...")
+                    conn.execute("ALTER TABLE articles ADD COLUMN image_url TEXT")
+                    
             logger.debug("Esquema de base de datos verificado e inicializado.")
         except sqlite3.Error as e:
-            logger.error(f"Error inicializando el esquema: {e}")
+            logger.error(f"Error inicializando o migrando el esquema: {e}")
         finally:
             conn.close()
 

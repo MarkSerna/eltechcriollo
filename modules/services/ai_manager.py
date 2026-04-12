@@ -25,15 +25,19 @@ class AIManager:
             return "Ollama no está disponible. Requiere verificar host local."
 
         # Prompt system engineering
-        prompt = f"""Escribe un comentario breve y satírico pero profesional (máximo 2 oraciones)
-        como si fueras el 'Dev Criollo' (un Ingeniero de Software latinoamericano agobiado pero experto),
-        dando tu opinión o reacción frente a esta noticia de IA/Tecnología. 
-        Habla como un programador de Medellín, Colombia (usa 'parce' suave u otras jergas tech, pero serio).
+        prompt = f"""Actúa como un Analista de Tecnología experto y redactor profesional. 
+        Tu tarea es redactar una versión propia y original de la siguiente noticia en español formal. 
+        
+        REGLAS ESTRICTAS:
+        1. NO utilices jergas, modismos locales ni palabras informales (PROHIBIDO usar 'parce', 'bacán', etc.).
+        2. El tono debe ser profesional, serio y experto.
+        3. Redacta un párrafo detallado de entre 3 y 4 líneas que resuma los puntos clave.
+        4. Asegúrate que la redacción sea original para evitar que parezca un plagio directo de la fuente.
         
         Noticia Título: {article.title}
-        Extracto/Contexto: {article.summary[:300]}
+        Extracto/Contexto: {article.summary[:500]}
         
-        Devuelve SOLO el comentario como string directo, sin prefijos ni títulos. Salida directa:"""
+        Devuelve SOLO la redacción original como string directo, sin prefijos ni títulos. Salida directa:"""
 
         payload = {
             "model": self.model,

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Criollo - Intelligence Hub</title>
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Boxicons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+
+    <div class="blob-bg"></div>
+
+    <header class="glass-header">
+        <div class="logo">
+            <i class='bx bx-bot'></i> El Dev Criollo
+        </div>
+        <div class="action-buttons" style="display: flex; gap: 10px;">
+            <button id="btn-test-tg" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+                <i class='bx bxl-telegram'></i> Probar Telegram
+            </button>
+            <button id="btn-scrape" class="btn-primary">
+                <i class='bx bx-refresh'></i> Escanear Novedades
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Contenido igual -->
+        <div class="hero-section">
+            <h1 class="gradient-text">Últimas Noticias de Tecnología y Startups</h1>
+            <p>Filtrado inteligente impulsado por RSS, Scrapers locales y opiniones sinceras evaluadas por <strong>Gemma 4</strong>.</p>
+        </div>
+
+        <div class="category-header">
+            <h2 class="gradient-text-small"><i class='bx bx-map-marker'></i> Ecosistema Colombia</h2>
+            <hr class="divider">
+        </div>
+        <div class="news-grid" id="news-grid-colombia">
+            {% if colombia_news %}
+                {% for article in colombia_news %}
+                <article class="news-card glass-panel">
+                    <div class="card-header">
+                        <span class="badge source-badge">{{ article.source_name }}</span>
+                        <span class="date">{{ article.processed_at.split(' ')[0] if article.processed_at else 'Reciente' }}</span>
+                    </div>
+                    <a href="{{ article.link }}" target="_blank" class="card-title-link">
+                        <h2>{{ article.title }}</h2>
+                    </a>
+                    <div class="ai-comment-box">
+                        <div class="ai-avatar"><i class='bx bx-brain'></i></div>
+                        <div class="ai-text">
+                            <strong>Opinión del Dev Criollo (AI):</strong>
+                            <p>{{ article.ai_comment }}</p>
+                        </div>
+                    </div>
+                    {% if article.reel_script %}
+                    <details class="reel-script">
+                        <summary><i class='bx bxl-tiktok'></i> Ver Guion Vertical</summary>
+                        <div class="script-content">
+                            {{ article.reel_script | replace('\n', '<br>') | safe }}
+                        </div>
+                    </details>
+                    {% endif %}
+                    <a href="{{ article.link }}" target="_blank" class="read-more">Leer Noticia <i class='bx bx-right-arrow-alt'></i></a>
+                </article>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state glass-panel">
+                    <i class='bx bx-coffee empty-icon'></i>
+                    <h2>Todo Tranquilo en Colombia</h2>
+                    <p>No hay novedades fuertes de MinTIC o Startups el día de hoy.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="category-header" style="margin-top: 4rem;">
+            <h2 class="gradient-text-small"><i class='bx bx-globe'></i> Radar Tecnológico Global</h2>
+            <hr class="divider">
+        </div>
+        <div class="news-grid" id="news-grid-global">
+            {% if global_news %}
+                {% for article in global_news %}
+                <article class="news-card glass-panel">
+                    <div class="card-header">
+                        <span class="badge source-badge">{{ article.source_name }}</span>
+                        <span class="date">{{ article.processed_at.split(' ')[0] if article.processed_at else 'Reciente' }}</span>
+                    </div>
+                    <a href="{{ article.link }}" target="_blank" class="card-title-link">
+                        <h2>{{ article.title }}</h2>
+                    </a>
+                    <div class="ai-comment-box">
+                        <div class="ai-avatar"><i class='bx bx-brain'></i></div>
+                        <div class="ai-text">
+                            <strong>Opinión del Dev Criollo (AI):</strong>
+                            <p>{{ article.ai_comment }}</p>
+                        </div>
+                    </div>
+                    {% if article.reel_script %}
+                    <details class="reel-script">
+                        <summary><i class='bx bxl-tiktok'></i> Ver Guion Vertical</summary>
+                        <div class="script-content">
+                            {{ article.reel_script | replace('\n', '<br>') | safe }}
+                        </div>
+                    </details>
+                    {% endif %}
+                    <a href="{{ article.link }}" target="_blank" class="read-more">Leer Noticia <i class='bx bx-right-arrow-alt'></i></a>
+                </article>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state glass-panel">
+                    <i class='bx bx-world empty-icon'></i>
+                    <h2>Sin Impactos Globales</h2>
+                    <p>Las mega corporaciones de IA están calladas por hoy.</p>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Floating Notification -->
+    <div id="toast" class="toast glass-panel">
+        <i class='bx bx-cog bx-spin'></i> <span id="toast-msg">Scraper Invocado..</span>
+    </div>
+
+    <script>
+        // Selectores de Elementos
+        const btnScrape = document.getElementById('btn-scrape');
+        const btnTestTg = document.getElementById('btn-test-tg');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+
+        function showNotification(msg, duration = 3000) {
+            toastMsg.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // Event Listener para Escaneo de Noticias
+        if (btnScrape) {
+            btnScrape.addEventListener('click', async () => {
+                const originalContent = btnScrape.innerHTML;
+                try {
+                    btnScrape.disabled = true;
+                    btnScrape.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Moliendo Data...";
+                    showNotification("Iniciando análisis asíncrono...");
+
+                    const response = await fetch('/api/scrape', { method: 'POST' });
+                    const data = await response.json();
+
+                    showNotification("Crawler trabajando en fondo. Recargando en 5s...");
+                    
+                    // Espera visual para que el usuario sienta que algo pasó
+                    setTimeout(() => {
+                        location.reload();
+                    }, 5000);
+
+                } catch (error) {
+                    showNotification("Fallo de red o servidor.");
+                    btnScrape.disabled = false;
+                    btnScrape.innerHTML = originalContent;
+                }
+            });
+        }
+
+        // Event Listener para Prueba de Telegram
+        if (btnTestTg) {
+            btnTestTg.addEventListener('click', async () => {
+                const originalContent = btnTestTg.innerHTML;
+                try {
+                    btnTestTg.disabled = true;
+                    btnTestTg.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Enviando...";
+
+                    const response = await fetch('/api/test-telegram', { method: 'POST' });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert("¡Exito! Revisa tu Telegram.");
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                } catch (error) {
+                    alert("No se pudo conectar con la API.");
+                } finally {
+                    btnTestTg.disabled = false;
+                    btnTestTg.innerHTML = originalContent;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

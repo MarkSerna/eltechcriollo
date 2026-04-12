@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+venv/
+.env
+.git/
+.vscode/
+
+# Evitamos enviar la data en crudo a la imagen pura, 
+# se manejará a través de docker-compose volumes en su lugar
+data/history.db
+logs/
+reports/

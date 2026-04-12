@@ -1,0 +1,17 @@
+services:
+  bot_scrapper:
+    build: .
+    container_name: devcriollo-bot
+    env_file:
+      - .env
+    # Mapeo de volúmenes críticos hacia host
+    # Todo lo que se escriba en estos directorios dentro del container se reflejará en C:\Users\Usuario\Proyectos\eldevcriollo
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    ports:
+      - "8088:8000"
+    # Reiniciar siempre porque ahora es un servicio Web continuo
+    restart: "always"

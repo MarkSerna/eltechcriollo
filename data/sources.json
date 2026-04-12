@@ -1,0 +1,32 @@
+[
+    {
+        "name": "MinTIC Noticias (Colombia)",
+        "url": "https://www.mintic.gov.co/portal/inicio/Sala-de-prensa/Noticias/RSS",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "TechCrunch AI",
+        "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "Wired ES - Tecnología",
+        "url": "https://es.wired.com/feed/section/tecnologia/rss",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "Xataka",
+        "url": "https://www.xataka.com/feed",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "Impacto TIC (Colombia)",
+        "url": "https://impactotic.co/feed/",
+        "type": "rss",
+        "region": "colombia"
+    }
+]

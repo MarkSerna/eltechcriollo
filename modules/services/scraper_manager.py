@@ -163,7 +163,7 @@ class ScraperManager:
                 # Esperar a que el contenedor principal sea visible
                 selectors = source.selectors or {}
                 container_selector = selectors.get("container", "article")
-                page.wait_for_selector(container_selector, timeout=20000)
+                page.wait_for_selector(container_selector, timeout=30000)
                 
                 # Scroll suave para disparar lazy-loading si existe
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight/2)")

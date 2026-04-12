@@ -48,6 +48,10 @@ class DatabaseManager:
                 if 'image_url' not in columns:
                     logger.info("🛠 Migrando base de datos: Añadiendo columna 'image_url'...")
                     conn.execute("ALTER TABLE articles ADD COLUMN image_url TEXT")
+                
+                if 'region' not in columns:
+                    logger.info("🛠 Migrando base de datos: Añadiendo columna 'region'...")
+                    conn.execute("ALTER TABLE articles ADD COLUMN region TEXT DEFAULT 'global'")
                     
             logger.debug("Esquema de base de datos verificado e inicializado.")
         except sqlite3.Error as e:

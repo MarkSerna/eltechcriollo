@@ -18,6 +18,14 @@ class SourceConfig:
         if self.type not in ["rss", "html", "dynamic"]:
             raise ValueError(f"Tipo desconocido '{self.type}' en la fuente {self.name}")
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SourceConfig":
+        """Crea una instancia filtrando campos desconocidos para evitar errores de init."""
+        import inspect
+        sig = inspect.signature(cls)
+        filtered_data = {k: v for k, v in data.items() if k in sig.parameters}
+        return cls(**filtered_data)
+
 @dataclass
 class ScrapedArticle:
     """Modelo que representa una noticia que ha sido extraída exitosamente."""

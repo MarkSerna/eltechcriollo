@@ -1,11 +1,12 @@
+name: techcriollo
 services:
   bot_scrapper:
     build: .
-    container_name: devcriollo-bot
+    container_name: techcriollo-bot
     env_file:
       - .env
     # Mapeo de volúmenes críticos hacia host
-    # Todo lo que se escriba en estos directorios dentro del container se reflejará en C:\Users\Usuario\Proyectos\eldevcriollo
+    # Todo lo que se escriba en estos directorios dentro del container se reflejará en C:\Users\Usuario\Proyectos\techcriollo
     volumes:
       - .:/app
       - ./data:/app/data

@@ -16,7 +16,7 @@ from modules.services.database_manager import DatabaseManager
 from modules.utils.logger import logger
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-app = FastAPI(title="El Dev Criollo - Intelligence Hub")
+app = FastAPI(title="El Tech Criollo - Intelligence Hub")
 
 # Configuración de Programación Automática (Cada 30 min)
 @app.on_event("startup")
@@ -60,7 +60,7 @@ async def test_telegram():
     """Envía un mini-reporte de prueba para verificar que el Bot funciona."""
     nm = NotificationManager()
     test_file = Path("reports/test_connection.md")
-    test_file.write_text("# Test de Conexión 🚀\n\nSi estás recibiendo esto, ¡tu integración con **El Dev Criollo** está perfecta!\n\n---\n*Enviado desde el Dashboard Local*")
+    test_file.write_text("# Test de Conexión 🚀\n\nSi estás recibiendo esto, ¡tu integración con **El Tech Criollo** está perfecta!\n\n---\n*Enviado desde el Dashboard Local*")
     
     success = nm.send_telegram_file(test_file)
     if success:

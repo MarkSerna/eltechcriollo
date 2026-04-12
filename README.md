@@ -1,11 +1,11 @@
-# 🤖 El Dev Criollo - Intelligence Hub
+# 🤖 El Tech Criollo - Intelligence Hub
 
 ![Status](https://img.shields.io/badge/Status-Activo-brightgreen)
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![Docker](https://img.shields.io/badge/Docker-Ready-cyan)
 ![AI](https://img.shields.io/badge/AI-Ollama--Gemma4-orange)
 
-**El Dev Criollo** es un centro de inteligencia de noticias automatizado que combina web scraping, análisis satírico impulsado por IA y notificaciones visuales multi-canal. Diseñado para mantenerte informado sobre el ecosistema Tech y Startups sin el ruido mediático tradicional.
+**El Tech Criollo** es un centro de inteligencia de noticias automatizado que combina web scraping, análisis satírico impulsado por IA y notificaciones visuales multi-canal. Diseñado para mantenerte informado sobre el ecosistema Tech y Startups sin el ruido mediático tradicional.
 
 ---
 
@@ -26,7 +26,7 @@ La forma más sencilla de correr el hub es mediante **Docker Compose**:
 
 ```bash
 # 1. Clonar el repo e ingresar
-cd eldevcriollo
+cd techcriollo
 
 # 2. Configurar credenciales
 cp .env.example .env
@@ -66,4 +66,4 @@ El sistema utiliza una estructura modular **M-S-C** (Models, Services, Core):
 Este proyecto es una herramienta de experimentación para la comunidad Tech Colombiana. Úsalo con sabiduría y un poco de sarcasmo.
 
 ---
-*Hecho con ❤️ por El Dev Criollo.*
+*Hecho con ❤️ por El Tech Criollo.*

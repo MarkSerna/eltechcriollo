@@ -19,7 +19,7 @@ class AIManager:
             return False
 
     def generate_comment(self, article: ScrapedArticle) -> str:
-        """Emite una petición de inferencia a Ollama obteniendo comentario sátirico / tech del Dev Criollo."""
+        """Emite una petición de inferencia a Ollama obteniendo comentario sátirico / tech del Tech Criollo."""
         if not self.ping():
             logger.warning(f"Ollama inalcanzable en {self.base_url}. Se omite inferencia.")
             return "Ollama no está disponible. Requiere verificar host local."

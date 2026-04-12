@@ -5,7 +5,7 @@ from modules.models.config import config
 
 def setup_logger():
     """Configura el sistema de logs con salida a consola y rotación/creación en disco."""
-    logger = logging.getLogger("ElDevCriollo")
+    logger = logging.getLogger("ElTechCriollo")
     
     # Prevenir que agregue repetidamente handlers
     if logger.handlers:

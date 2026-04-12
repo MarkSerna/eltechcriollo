@@ -18,7 +18,7 @@ from deep_translator import GoogleTranslator
 def main_orchestrator():
     """Lógica principal de orquestación, aislada y sin acoplamiento a scripts en crudo."""
     logger.info("=========================================")
-    logger.info("🤖 Iniciando Orquestador El Dev Criollo")
+    logger.info("🤖 Iniciando Orquestador El Tech Criollo")
     logger.info("=========================================")
     
     # 1. Inicialización e Indentificación de dependencias
@@ -39,7 +39,7 @@ def main_orchestrator():
     try:
         with open(sources_path, 'r', encoding='utf-8') as f:
             raw_sources = json.load(f)
-            sources = [SourceConfig(**src) for src in raw_sources]
+            sources = [SourceConfig.from_dict(src) for src in raw_sources]
     except Exception as e:
         logger.error(f"Error interpretando sources.json: {e}")
         return []

@@ -13,13 +13,13 @@
     },
     {
         "name": "Forbes Colombia (AI/Tech)",
-        "url": "https://forbes.co/category/tecnologia/feed/",
+        "url": "https://forbes.co/category/tecnologia/",
         "type": "rss",
         "region": "colombia"
     },
     {
         "name": "El Colombiano - Tecnología",
-        "url": "https://www.elcolombiano.com/feeds/rss/tecnologia.xml",
+        "url": "https://www.elcolombiano.com/tecnologia/",
         "type": "rss",
         "region": "colombia"
     },
@@ -31,7 +31,7 @@
     },
     {
         "name": "La FM - Tecnología",
-        "url": "https://www.lafm.com.co/tecnologia/feed/",
+        "url": "https://www.lafm.com.co/tecnologia/",
         "type": "rss",
         "region": "colombia"
     },

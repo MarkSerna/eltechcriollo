@@ -27,7 +27,7 @@ class NotificationManager:
                     'file': (filepath.name, f, 'text/markdown')
                 }
                 payload = {
-                    'content': '🚀 **¡Nuevo Boletín Diario del Dev Criollo Listo Para Grabar/Publicar!**'
+                    'content': '🚀 **¡Nuevo Boletín Diario del Tech Criollo Listo Para Grabar/Publicar!**'
                 }
                 
                 response = requests.post(self.discord_webhook, data=payload, files=files, timeout=20)
@@ -61,7 +61,7 @@ class NotificationManager:
             with open(filepath, 'rb') as f:
                 payload = {
                     'chat_id': chat_id,
-                    'caption': '🚀 **¡Nuevo Boletín Diario del Dev Criollo Listo!**\nRevísalo para grabar tus Reels.'
+                    'caption': '🚀 **¡Nuevo Boletín Diario del Tech Criollo Listo!**\nRevísalo para grabar tus Reels.'
                 }
                 files = {
                     'document': (filepath.name, f, 'text/markdown')
@@ -91,18 +91,24 @@ class NotificationManager:
         try:
             url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
             
-            # Construir el pie de página (Caption)
+            # Sanitización para modo HTML de Telegram
+            import html
+            safe_title = html.escape(article.title)
+            safe_comment = html.escape(article.ai_comment)
+            safe_source = html.escape(article.source_name)
+            
+            # Construir el pie de página (Caption) usando HTML (más robusto para links con caracteres especiales)
             caption = (
-                f"📰 *{article.title}*\n\n"
-                f"📝 *Resumen del Analista:*\n{article.ai_comment}\n\n"
-                f"📍 *Fuente:* {article.source_name}\n"
-                f"🔗 [Leer noticia original]({article.link})"
+                f"📰 <b>{safe_title}</b>\n\n"
+                f"📝 <b>Resumen del Analista:</b>\n{safe_comment}\n\n"
+                f"📍 <b>Fuente:</b> {safe_source}\n"
+                f"🔗 <a href='{article.link}'>Leer noticia original</a>"
             )
             
             payload = {
                 'chat_id': chat_id,
                 'caption': caption,
-                'parse_mode': 'Markdown'
+                'parse_mode': 'HTML'
             }
             
             # Si hay imagen, la enviamos por URL, si no, fallamos al modo texto simple

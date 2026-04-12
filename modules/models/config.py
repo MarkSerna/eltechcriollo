@@ -19,7 +19,7 @@ class TelegramConfig:
 class PathConfig:
     """Configuración de rutas del sistema."""
     data_dir: Path = Path(os.getenv("DB_DIR", "data"))
-    db_name: str = os.getenv("DB_NAME", "history.db")
+    db_name: str = os.getenv("DB_NAME", "tech_history.db")
     sources_path: Path = Path(os.getenv("SOURCES_PATH", "data/sources.json"))
     reports_dir: Path = Path(os.getenv("REPORTS_DIR", "reports"))
     logs_dir: Path = Path(os.getenv("LOGS_DIR", "logs"))

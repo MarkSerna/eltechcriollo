@@ -25,7 +25,7 @@ class ReportManager:
         
         try:
             with open(report_path, "w", encoding="utf-8") as f:
-                f.write(f"# 📰 Recap El Dev Criollo - {today}\n\n")
+                f.write(f"# 📰 Recap El Tech Criollo - {today}\n\n")
                 f.write(f"*Total extraídas para revisión:* {len(articles)}\n\n")
                 f.write("---\n\n")
                 
@@ -33,7 +33,7 @@ class ReportManager:
                     f.write(f"## {article.title}\n")
                     f.write(f"**🌐 Fuente:** _{article.source_name}_\n\n")
                     f.write(f"**🔗 Enlace:** [Visitar Noticia Original]({article.link})\n\n")
-                    f.write(f"**✍ Comentario del Dev Criollo:** \n")
+                    f.write(f"**✍ Comentario del Tech Criollo:** \n")
                     f.write(f">\n\n")
                     f.write(f"---\n")
                     

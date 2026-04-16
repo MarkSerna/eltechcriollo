@@ -2,17 +2,16 @@ name: techcriollo
 services:
   bot_scrapper:
     build: .
-    container_name: techcriollo-bot
+    container_name: techcriollo-app
     env_file:
       - .env
-    # Mapeo de volúmenes críticos hacia host
-    # Todo lo que se escriba en estos directorios dentro del container se reflejará en C:\Users\Usuario\Proyectos\techcriollo
     volumes:
+      # Mapeo completo para desarrollo (hot-reload habilitado en main.py)
       - .:/app
+      # Mapeo explícito de carpetas persistentes
       - ./data:/app/data
       - ./logs:/app/logs
       - ./reports:/app/reports
     ports:
       - "8088:8000"
-    # Reiniciar siempre porque ahora es un servicio Web continuo
-    restart: "always"
+    restart: unless-stopped

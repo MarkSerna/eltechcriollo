@@ -73,7 +73,10 @@ class NotificationManager:
             return True
             
         except requests.RequestException as e:
-            logger.error(f"Error HTTP enviando notificación a Telegram: {e}")
+            error_msg = f"Error HTTP enviando notificación a Telegram: {e}"
+            if e.response is not None:
+                error_msg += f" | Response: {e.response.text}"
+            logger.error(error_msg)
             return False
         except Exception as e:
             logger.error(f"Error asíncrono inesperado enviando notificación a Telegram: {e}")

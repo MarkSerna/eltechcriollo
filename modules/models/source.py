@@ -6,16 +6,20 @@ class SourceConfig:
     """Modelo fuerte para cada sitio web incluido en sources.json."""
     name: str
     url: str
-    type: str # 'rss' o 'html'
-    region: str = "global" # Por defecto 'global', puede ser 'colombia'
+    type: str  # 'rss', 'html', 'dynamic', 'wpapi', 'mintic'
+    region: str = "global"  # Por defecto 'global', puede ser 'colombia'
     selectors: Optional[Dict[str, str]] = None
-    
+    extra: Optional[Dict[str, Any]] = None  # Parámetros extra por tipo de fuente
+
     def __post_init__(self):
         if self.selectors is None:
             self.selectors = {}
-        
+        if self.extra is None:
+            self.extra = {}
+
         # Validación de integridad lógica
-        if self.type not in ["rss", "html", "dynamic"]:
+        valid_types = ["rss", "html", "dynamic", "wpapi", "mintic", "sharepoint", "sena"]
+        if self.type not in valid_types:
             raise ValueError(f"Tipo desconocido '{self.type}' en la fuente {self.name}")
 
     @classmethod
@@ -33,12 +37,12 @@ class ScrapedArticle:
     link: str
     source_name: str
     region: str = "global"
+    department: Optional[str] = None   # Departamento colombiano detectado
     summary: str = ""
     ai_comment: str = ""
     reel_script: str = ""
     image_url: Optional[str] = None
 
-    
     def get_content_snapshot(self) -> str:
         """Retorna una versión unificada del texto para analizar palabras clave."""
         return f"{self.title} {self.summary}".lower()

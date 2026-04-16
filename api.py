@@ -6,6 +6,8 @@ from fastapi.templating import Jinja2Templates
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import date, timedelta
+from collections import OrderedDict
 
 # Ensure module visibility
 sys.path.insert(0, str(Path(__file__).parent))
@@ -22,7 +24,6 @@ app = FastAPI(title="El Tech Criollo - Intelligence Hub")
 @app.on_event("startup")
 async def start_scheduler():
     scheduler = AsyncIOScheduler()
-    # Ejecutamos el orquestador cada 30 minutos
     scheduler.add_job(main_orchestrator, 'interval', minutes=30)
     scheduler.start()
     logger.info("⏰ Programador activado: Escaneo autónomo cada 30 minutos configurado.")
@@ -39,19 +40,89 @@ templates = Jinja2Templates(directory="templates")
 db = DatabaseManager()
 db.initialize_schema()
 
+_MONTHS_ES = {
+    1: "ene", 2: "feb", 3: "mar", 4: "abr", 5: "may", 6: "jun",
+    7: "jul", 8: "ago", 9: "sep", 10: "oct", 11: "nov", 12: "dic"
+}
+
+def _group_by_day(articles: list) -> list:
+    """
+    Agrupa una lista de artículos por día (campo processed_at).
+    Retorna lista ordenada de más reciente a más antiguo:
+      [{"label": "Hoy · 15 abr 2026", "date": "2026-04-15", "articles": [...]}, ...]
+    """
+    today     = date.today()
+    yesterday = today - timedelta(days=1)
+    grouped: dict[str, list] = OrderedDict()
+
+    for article in articles:
+        raw_ts = article.get("processed_at", "")
+        try:
+            day_str = str(raw_ts)[:10]   # "YYYY-MM-DD"
+            date.fromisoformat(day_str)  # valida el formato
+        except Exception:
+            day_str = str(today)
+
+        if day_str not in grouped:
+            grouped[day_str] = []
+        grouped[day_str].append(article)
+
+    result = []
+    for day_str, arts in grouped.items():
+        day = date.fromisoformat(day_str)
+        readable = f"{day.day} {_MONTHS_ES[day.month]} {day.year}"
+        if day == today:
+            label = f"Hoy · {readable}"
+        elif day == yesterday:
+            label = f"Ayer · {readable}"
+        else:
+            label = readable
+        result.append({"label": label, "date": day_str, "articles": arts})
+
+    return result
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Renderiza el tablero interactivo de lectura con Vanilla UI separando por región."""
+    """Renderiza el tablero interactivo de lectura agrupando noticias por día y región."""
     articles = db.get_todays_articles()
-    
+
     colombia_news = [a for a in articles if a.get("region") == "colombia"]
-    global_news = [a for a in articles if a.get("region") == "global"]
-    
-    return templates.TemplateResponse(
-        request=request, 
-        name="index.html", 
-        context={"colombia_news": colombia_news, "global_news": global_news}
+    global_news   = [a for a in articles if a.get("region") == "global"]
+
+    # Artículo destacado: el más reciente de Colombia
+    featured = colombia_news[0] if colombia_news else None
+
+    # ── Mapa regional: agrupar noticias colombianas por departamento ──────
+    from collections import defaultdict
+    dept_raw: dict[str, list] = defaultdict(list)
+    for article in colombia_news:
+        dept = article.get("department") or "Nacional"
+        dept_raw[dept].append(article)
+
+    # Ordenar: primero departamentos con más noticias, Nacional siempre al final
+    sorted_depts = sorted(
+        [(dept, arts) for dept, arts in dept_raw.items() if dept != "Nacional"],
+        key=lambda x: len(x[1]),
+        reverse=True,
     )
+    if "Nacional" in dept_raw:
+        sorted_depts.append(("Nacional", dept_raw["Nacional"]))
+
+    departments_map = dict(sorted_depts)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "featured":         featured,
+            "days_colombia":    _group_by_day(colombia_news[1:] if featured else colombia_news),
+            "days_global":      _group_by_day(global_news),
+            "departments_map":  departments_map,
+            "global_news":      global_news,
+        }
+    )
+
 
 from modules.services.notification_manager import NotificationManager
 
@@ -61,7 +132,7 @@ async def test_telegram():
     nm = NotificationManager()
     test_file = Path("reports/test_connection.md")
     test_file.write_text("# Test de Conexión 🚀\n\nSi estás recibiendo esto, ¡tu integración con **El Tech Criollo** está perfecta!\n\n---\n*Enviado desde el Dashboard Local*")
-    
+
     success = nm.send_telegram_file(test_file)
     if success:
         return JSONResponse(content={"status": "ok", "message": "¡Mensaje de prueba enviado! Revisa tu Telegram."})
@@ -74,6 +145,6 @@ async def trigger_scrape(background_tasks: BackgroundTasks):
     logger.info("🚀 Petición de Scraping forzada vía API Web..")
     def background_job():
         main_orchestrator()
-        
+
     background_tasks.add_task(background_job)
     return JSONResponse(content={"status": "working", "message": "Scraping e Inferencia IA ha comenzado en fondo. Recarga la página en unos segundos."})

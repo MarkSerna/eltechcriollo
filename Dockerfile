@@ -1,15 +1,14 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
-# Evitar que python escriba bytecode (.pyc) a disco y forzar purga de stdout buffering.
+# Evitar que python escriba bytecode (.pyc) a disco y forzar stdout buffering
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Crear carpeta del contenedor
 WORKDIR /app
 
-# Instalar dependencias del sistema requeridas por Playwright/Chromium
-# Se añaden fuentes y librerías adicionales para evitar errores en Debian/Slim
-RUN apt-get update && apt-get install -y \
+# Instalar dependencias del sistema mínimas para Playwright/Chromium en Debian Bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     libnss3 \
@@ -37,19 +36,17 @@ RUN apt-get update && apt-get install -y \
     libxi6 \
     libxtst6 \
     fonts-liberation \
-    fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar dependencias primero para aprovechar caché en las capas de Docker
+# Instalar dependencias de Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar navegadores de Playwright (Solo Chromium para ahorrar espacio)
+# Instalar navegador Chromium (sin descargar dependencias de nuevo, ya las pusimos arriba)
 RUN playwright install chromium
 
-# Copiar el código fuente completo
+# Copiar el código fuente
 COPY . .
 
-# Comando default: Correr el orquestador single-shot.
-# Si prefieres que el contenedor no muera nunca se requeriría un while loop o librería schedule.
-CMD ["python", "main.py"]
+# Comando default: Uvicorn estable (sin --reload para que el scheduler no muera)
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -33,6 +33,7 @@ class DatabaseManager:
                         url TEXT UNIQUE NOT NULL,
                         source TEXT,
                         region TEXT,
+                        department TEXT,
                         ai_comment TEXT,
                         reel_script TEXT,
                         image_url TEXT,
@@ -48,10 +49,14 @@ class DatabaseManager:
                 if 'image_url' not in columns:
                     logger.info("🛠 Migrando base de datos: Añadiendo columna 'image_url'...")
                     conn.execute("ALTER TABLE articles ADD COLUMN image_url TEXT")
-                
+
                 if 'region' not in columns:
                     logger.info("🛠 Migrando base de datos: Añadiendo columna 'region'...")
                     conn.execute("ALTER TABLE articles ADD COLUMN region TEXT DEFAULT 'global'")
+
+                if 'department' not in columns:
+                    logger.info("🛠 Migrando base de datos: Añadiendo columna 'department'...")
+                    conn.execute("ALTER TABLE articles ADD COLUMN department TEXT DEFAULT NULL")
                     
             logger.debug("Esquema de base de datos verificado e inicializado.")
         except sqlite3.Error as e:
@@ -84,8 +89,9 @@ class DatabaseManager:
         try:
             with conn:
                 conn.execute(
-                    "INSERT INTO articles (title, url, source, region, ai_comment, reel_script, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                    (article.title, article.link, article.source_name, article.region, article.ai_comment, article.reel_script, article.image_url)
+                    "INSERT INTO articles (title, url, source, region, department, ai_comment, reel_script, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (article.title, article.link, article.source_name, article.region,
+                     article.department, article.ai_comment, article.reel_script, article.image_url)
                 )
             return True
         except sqlite3.IntegrityError:
@@ -102,12 +108,16 @@ class DatabaseManager:
         conn = self._get_connection()
         if not conn:
             return []
-            
+
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT title, url, source, region, ai_comment, reel_script, image_url, processed_at FROM articles ORDER BY processed_at DESC LIMIT 100")
+            cursor.execute(
+                "SELECT title, url, source, region, department, ai_comment, reel_script, image_url, processed_at "
+                "FROM articles ORDER BY processed_at DESC LIMIT 150"
+            )
             rows = cursor.fetchall()
-            keys = ["title", "link", "source_name", "region", "ai_comment", "reel_script", "image_url", "processed_at"]
+            keys = ["title", "link", "source_name", "region", "department",
+                    "ai_comment", "reel_script", "image_url", "processed_at"]
             return [dict(zip(keys, row)) for row in rows]
         except sqlite3.Error as e:
             logger.error(f"Error obteniendo artículos de la DB: {e}")

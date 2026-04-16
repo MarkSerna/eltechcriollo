@@ -1,12 +1,24 @@
+# Directorios de Python y caché
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 venv/
 .env
-.git/
-.vscode/
 
-# Evitamos enviar la data en crudo a la imagen pura, 
-# se manejará a través de docker-compose volumes en su lugar
-data/history.db
+# Directorios de Git y VS Code
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Datos y logs locales (se manejan vía volúmenes)
+data/*.db
+data/*.sqlite
 logs/
 reports/
+
+# Otros
+.DS_Store
+README.md
+Dockerfile
+docker-compose.yml

@@ -95,3 +95,36 @@ class AIManager:
         except Exception as e:
             logger.error(f"Error generando guion: {e}")
             return "Fallo generando guion viral."
+
+    def is_tech_news(self, article: ScrapedArticle) -> bool | None:
+        """Determinas con IA si la noticia es puramente tecnológica o de digitalización gubernamental/general."""
+        if not self.ping():
+            return None # Fallback a validación de palabras clave si Ollama no está disponible
+
+        prompt = f"""Responde únicamente con SI o NO.
+¿Es el siguiente artículo estrictamente sobre tecnología emergente, innovación tecnológica, ciberseguridad, startups tecnológicas, inteligencia artificial o desarrollo de software? Si es sobre trámites de gobierno, política, subsidios, nombramientos (incluso si son en ministerios de TIC) o noticias generales, debes responder NO.
+
+Título: {article.title}
+Extracto: {article.summary[:500]}
+
+Tu respuesta (SI o NO):"""
+
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_ctx": 1024
+            }
+        }
+        
+        try:
+            response = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            answer = data.get("response", "").strip().upper()
+            return answer.startswith("SI")
+        except Exception as e:
+            logger.error(f"Error comprobando validez de tech en IA: {e}")
+            return None

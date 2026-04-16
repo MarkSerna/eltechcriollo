@@ -1,8 +1,20 @@
 [
     {
-        "name": "MinTIC Noticias (Colombia)",
-        "url": "https://www.mintic.gov.co/portal/inicio/Sala-de-prensa/Noticias/RSS",
-        "type": "rss",
+        "name": "SENA - Noticias",
+        "url": "https://www.sena.edu.co/",
+        "type": "sena",
+        "region": "colombia"
+    },
+    {
+        "name": "Fondo Emprender - Noticias",
+        "url": "https://www.fondoemprender.com/SitePages/Noticias.aspx",
+        "type": "sharepoint",
+        "region": "colombia"
+    },
+    {
+        "name": "MinTIC - Noticias",
+        "url": "https://www.mintic.gov.co/portal/inicio/Sala-de-prensa/Noticias/",
+        "type": "mintic",
         "region": "colombia"
     },
     {
@@ -12,77 +24,73 @@
         "region": "colombia"
     },
     {
-        "name": "Forbes Colombia (AI/Tech)",
-        "url": "https://forbes.co/category/tecnologia/",
-        "type": "rss",
-        "region": "colombia"
-    },
-    {
-        "name": "El Colombiano - Tecnología",
-        "url": "https://www.elcolombiano.com/tecnologia/",
-        "type": "rss",
-        "region": "colombia"
-    },
-    {
-        "name": "La República - TI",
-        "url": "https://www.larepublica.co/rss/tecnologia",
-        "type": "rss",
-        "region": "colombia"
-    },
-    {
-        "name": "La FM - Tecnología",
-        "url": "https://www.lafm.com.co/tecnologia/",
-        "type": "rss",
-        "region": "colombia"
-    },
-    {
-        "name": "Noticias Caracol - Tecnología",
-        "url": "https://noticias.caracoltv.com/tecnologia",
-        "type": "dynamic",
+        "name": "Forbes Colombia - Tecnología",
+        "url": "https://forbes.co/seccion/tecnologia/",
+        "type": "wpapi",
         "region": "colombia",
-        "selectors": {
-            "container": "h2.Card-title",
-            "title": "a",
-            "link": "a"
+        "extra": {
+            "api_base": "https://editorial.forbes.co/wp-json/wp/v2",
+            "category_id": 5,
+            "per_page": 15
         }
     },
     {
-        "name": "Canal Trece - Tecnología",
-        "url": "https://canaltrece.com.co/tecnologia-y-videojuegos",
-        "type": "dynamic",
-        "region": "colombia",
-        "selectors": {
-            "container": "div.noticia-item",
-            "title": "h3",
-            "link": "a"
-        }
+        "name": "La República - Economía",
+        "url": "https://www.larepublica.co/rss/economia",
+        "type": "rss",
+        "region": "colombia"
     },
     {
-        "name": "Cambio Colombia - Tech",
-        "url": "https://cambiocolombia.com/tecnologia",
-        "type": "dynamic",
-        "region": "colombia",
-        "selectors": {
-            "container": "div.article-card",
-            "title": "h2",
-            "link": "a"
-        }
+        "name": "La Patria (Caldas)",
+        "url": "https://www.lapatria.com/rss.xml",
+        "type": "rss",
+        "region": "colombia"
     },
     {
-        "name": "TechCrunch AI",
-        "url": "https://techcrunch.com/category/artificial-intelligence/feed/",
+        "name": "El Diario (Risaralda)",
+        "url": "https://www.eldiario.com.co/feed/",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "Diario del Huila",
+        "url": "https://diariodelhuila.com/feed/",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "Diario del Sur (Nariño)",
+        "url": "https://www.diariodelsur.com.co/feed/",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/feed/",
         "type": "rss",
         "region": "global"
     },
     {
-        "name": "Wired ES - Tecnología",
-        "url": "https://es.wired.com/feed/section/tecnologia/rss",
+        "name": "Wired en Español",
+        "url": "https://es.wired.com/feed/rss",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "MIT Technology Review",
+        "url": "https://www.technologyreview.com/feed/",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "The Verge",
+        "url": "https://www.theverge.com/rss/index.xml",
         "type": "rss",
         "region": "global"
     },
     {
         "name": "Xataka",
-        "url": "https://www.xataka.com/feed",
+        "url": "https://www.xataka.com/feedburner.xml",
         "type": "rss",
         "region": "global"
     }

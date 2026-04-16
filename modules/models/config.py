@@ -33,14 +33,35 @@ class PathConfig:
 class ScraperConfig:
     """Configuración de las arañas de extracción."""
     keywords: List[str] = None
+    strict_keywords: List[str] = None
+    supporting_keywords: List[str] = None
     timeout: int = 15
     user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     def __post_init__(self):
+        if self.strict_keywords is None:
+            self.strict_keywords = [
+                "IA", "inteligencia artificial", "modelos de lenguaje", "machine learning",
+                "aprendizaje automático", "startup", "startups", "desarrollo de software",
+                "ciberseguridad", "automatización", "semiconductor", "criptomoneda", 
+                "blockchain", "fintech", "GPT", "LLM", "programación", "código"
+            ]
+            
+        if self.supporting_keywords is None:
+            self.supporting_keywords = [
+                "tecnología", "tech", "innovación", "digital", "aplicación", "plataforma",
+                "datos", "nube", "cloud", "robot", "algoritmo", "chip", "ecommerce",
+                "redes sociales", "smartphone", "5g", "internet", "software", "hardware"
+            ]
+
         if self.keywords is None:
-            self.keywords = [
-                "IA", "Modelos de lenguaje", "Startups Colombianas", 
-                "Desarrollo de Software", "Inteligencia Artificial", "AI", "Machine Learning"
+            self.keywords = self.strict_keywords + self.supporting_keywords + [
+                "colombia tech", "ecosistema tech", "emprendimiento",
+                "AI", "artificial intelligence", "deep learning",
+                "security", "privacy", "developer", "model",
+                "neural", "autonomous", "electric", "funding",
+                "venture", "billion", "acquisition", "Google", "Apple", "Meta",
+                "OpenAI", "Microsoft", "Amazon", "Tesla", "NVIDIA"
             ]
 
 

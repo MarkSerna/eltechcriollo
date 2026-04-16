@@ -3,196 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tech Criollo - Intelligence Hub</title>
+    <title>El Tech Criollo | Inteligencia de Startups y Tech</title>
+    <meta name="description" content="Portal de inteligencia tecnológica colombiana. Noticias de startups, IA y ecosistema tech, curadas y comentadas por inteligencia artificial.">
     <!-- Modern Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=1.2">
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+    <style>
+        /* ── Archivo por Día ─────────────────────────────────────────────── */
+        .day-group {
+            margin-bottom: 48px;
+        }
+
+        .day-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 24px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .day-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent, #2563eb);
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            border-radius: 20px;
+            padding: 4px 14px;
+            white-space: nowrap;
+        }
+
+        .day-sep {
+            flex-grow: 1;
+            height: 1px;
+            background: linear-gradient(to right, rgba(37, 99, 235, 0.18), transparent);
+        }
+
+        .day-toggle {
+            font-size: 1.2rem;
+            color: #999;
+            transition: transform 0.25s ease;
+            line-height: 1;
+        }
+
+        .day-header.collapsed .day-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .day-body {
+            overflow: hidden;
+            transition: max-height 0.35s ease, opacity 0.25s ease;
+            max-height: 9999px;
+            opacity: 1;
+        }
+
+        .day-body.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        /* Badge contador */
+        .day-count {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #888;
+            background: #f3f4f6;
+            border-radius: 12px;
+            padding: 2px 9px;
+        }
+
+        /* ── Separador de sección   ───────────────────────────────────────── */
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 48px 0 32px;
+        }
+        .section-title h2 {
+            white-space: nowrap;
+            margin: 0;
+        }
+        .section-title hr {
+            flex-grow: 1;
+            border: none;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        /* ── Sección Regiones ──────────────────────────────────────────────── */
+        .regions-tabs {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            scrollbar-width: thin;
+        }
+        .region-tab {
+            padding: 8px 18px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            color: #4b5563;
+        }
+        .region-tab.active {
+            background: var(--accent, #2563eb);
+            color: white;
+            border-color: var(--accent, #2563eb);
+        }
+        .region-content {
+            display: none;
+        }
+        .region-content.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
 
-    <div class="blob-bg"></div>
-
-    <header class="glass-header">
-        <div class="logo">
-            <i class='bx bx-bot'></i> El Tech Criollo
+    <div class="top-bar">
+        <div class="container">
+            <span id="current-date">Cargando fecha...</span>
+            <div class="top-links">
+                <a href="#" style="color: white; text-decoration: none; margin-left: 15px;">Newsletter</a>
+                <a href="#" style="color: white; text-decoration: none; margin-left: 15px;">Podcast</a>
+            </div>
         </div>
-        <div class="action-buttons" style="display: flex; gap: 10px;">
-            <button id="btn-test-tg" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
-                <i class='bx bxl-telegram'></i> Probar Telegram
-            </button>
-            <button id="btn-scrape" class="btn-primary">
-                <i class='bx bx-refresh'></i> Escanear Novedades
-            </button>
+    </div>
+
+    <header>
+        <div class="container">
+            <div class="header-inner">
+                <a href="/" class="logo">
+                    <img src="/static/logo-v2.png" alt="Tech Criollo Logo" style="height: 60px; width: auto;">
+                    <span>EL TECH CRIOLLO</span>
+                </a>
+                <nav class="nav-links">
+                    <a href="#colombia">Colombia</a>
+                    <a href="#global">Global</a>
+                    <a href="#ia">IA &amp; Futuro</a>
+                </nav>
+                <div class="action-buttons" style="display: flex; gap: 10px;">
+                    <button id="btn-test-tg" class="btn btn-secondary">
+                        <i class='bx bxl-telegram'></i> Telegram
+                    </button>
+                    <button id="btn-scrape" class="btn btn-primary">
+                        <i class='bx bx-refresh'></i> Escanear
+                    </button>
+                </div>
+            </div>
         </div>
     </header>
 
     <main class="container">
-        <!-- Contenido igual -->
-        <div class="hero-section">
-            <h1 class="gradient-text">Últimas Noticias de Tecnología y Startups</h1>
-            <p>Filtrado inteligente impulsado por RSS, Scrapers locales y opiniones sinceras evaluadas por <strong>Gemma 4</strong>.</p>
+
+        <!-- ══ Hero: Artículo Destacado ══════════════════════════════════ -->
+        <div class="portal-hero">
+            <div class="main-feature">
+                {% if featured %}
+                    <a href="{{ featured.link }}" target="_blank" style="text-decoration: none; color: inherit;">
+                        <img src="{{ featured.image_url if featured.image_url else 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=1200' }}" alt="Featured">
+                        <span class="label">Destacado: Colombia</span>
+                        <h1>{{ featured.title }}</h1>
+                        <p>{{ featured.ai_comment[:200] if featured.ai_comment else '' }}...</p>
+                    </a>
+                {% else %}
+                    <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200" alt="Default">
+                    <span class="label">Radar Criollo</span>
+                    <h1>Sin novedades críticas por ahora</h1>
+                    <p>Mantente conectado para las últimas actualizaciones del ecosistema tech colombiano.</p>
+                {% endif %}
+            </div>
+
+            <div class="sidebar-latest">
+                <h3>Lo Último</h3>
+                <div class="latest-feed">
+                    {% if global_news %}
+                        {% for article in global_news[:4] %}
+                        <div class="mini-card">
+                            <span class="meta">{{ article.source_name }}</span>
+                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
+                                <h4>{{ article.title }}</h4>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Silencio en el radar global...</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
-        <div class="category-header">
-            <h2 class="gradient-text-small"><i class='bx bx-map-marker'></i> Ecosistema Colombia</h2>
-            <hr class="divider">
-        </div>
-        <div class="news-grid" id="news-grid-colombia">
-            {% if colombia_news %}
-                {% for article in colombia_news %}
-                <article class="news-card glass-panel">
-                    <div class="card-header">
-                        <span class="badge source-badge">{{ article.source_name }}</span>
-                        <span class="date">{{ article.processed_at.split(' ')[0] if article.processed_at else 'Reciente' }}</span>
-                    </div>
-                    <a href="{{ article.link }}" target="_blank" class="card-title-link">
-                        <h2>{{ article.title }}</h2>
-                    </a>
-                    <div class="ai-comment-box">
-                        <div class="ai-avatar"><i class='bx bx-brain'></i></div>
-                        <div class="ai-text">
-                            <strong>Opinión del Tech Criollo (AI):</strong>
-                            <p>{{ article.ai_comment }}</p>
-                        </div>
-                    </div>
-                    {% if article.reel_script %}
-                    <details class="reel-script">
-                        <summary><i class='bx bxl-tiktok'></i> Ver Guion Vertical</summary>
-                        <div class="script-content">
-                            {{ article.reel_script | replace('\n', '<br>') | safe }}
-                        </div>
-                    </details>
-                    {% endif %}
-                    <a href="{{ article.link }}" target="_blank" class="read-more">Leer Noticia <i class='bx bx-right-arrow-alt'></i></a>
-                </article>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state glass-panel">
-                    <i class='bx bx-coffee empty-icon'></i>
-                    <h2>Todo Tranquilo en Colombia</h2>
-                    <p>No hay novedades fuertes de MinTIC o Startups el día de hoy.</p>
-                </div>
-            {% endif %}
+        <!-- ══ Sección: Ecosistema Colombia ══════════════════════════════ -->
+        <div id="colombia" class="section-title">
+            <h2>Ecosistema Colombia</h2>
+            <hr>
         </div>
 
-        <div class="category-header" style="margin-top: 4rem;">
-            <h2 class="gradient-text-small"><i class='bx bx-globe'></i> Radar Tecnológico Global</h2>
-            <hr class="divider">
-        </div>
-        <div class="news-grid" id="news-grid-global">
-            {% if global_news %}
-                {% for article in global_news %}
-                <article class="news-card glass-panel">
-                    <div class="card-header">
-                        <span class="badge source-badge">{{ article.source_name }}</span>
-                        <span class="date">{{ article.processed_at.split(' ')[0] if article.processed_at else 'Reciente' }}</span>
-                    </div>
-                    <a href="{{ article.link }}" target="_blank" class="card-title-link">
-                        <h2>{{ article.title }}</h2>
-                    </a>
-                    <div class="ai-comment-box">
-                        <div class="ai-avatar"><i class='bx bx-brain'></i></div>
-                        <div class="ai-text">
-                            <strong>Opinión del Tech Criollo (AI):</strong>
-                            <p>{{ article.ai_comment }}</p>
-                        </div>
-                    </div>
-                    {% if article.reel_script %}
-                    <details class="reel-script">
-                        <summary><i class='bx bxl-tiktok'></i> Ver Guion Vertical</summary>
-                        <div class="script-content">
-                            {{ article.reel_script | replace('\n', '<br>') | safe }}
-                        </div>
-                    </details>
-                    {% endif %}
-                    <a href="{{ article.link }}" target="_blank" class="read-more">Leer Noticia <i class='bx bx-right-arrow-alt'></i></a>
-                </article>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state glass-panel">
-                    <i class='bx bx-world empty-icon'></i>
-                    <h2>Sin Impactos Globales</h2>
-                    <p>Las mega corporaciones de IA están calladas por hoy.</p>
+        {% if days_colombia %}
+            {% for day in days_colombia %}
+            <div class="day-group" id="col-day-{{ loop.index }}">
+
+                <!-- Cabecera del día (clic para colapsar) -->
+                <div class="day-header{% if not loop.first %} collapsed{% endif %}"
+                     data-target="col-body-{{ loop.index }}">
+                    <span class="day-label">
+                        <i class='bx bx-calendar-alt' style="vertical-align:-2px; margin-right:4px;"></i>
+                        {{ day.label }}
+                    </span>
+                    <span class="day-count">{{ day.articles | length }} noticia{{ 's' if day.articles | length != 1 }}</span>
+                    <span class="day-sep"></span>
+                    <span class="day-toggle"><i class='bx bx-chevron-down'></i></span>
                 </div>
-            {% endif %}
+
+                <!-- Cuerpo del día -->
+                <div class="day-body{% if not loop.first %} collapsed{% endif %}" id="col-body-{{ loop.index }}">
+                    <div class="news-grid">
+                        {% for article in day.articles %}
+                        <article class="article-card">
+                            <div class="article-img-wrapper">
+                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600' }}" alt="News">
+                            </div>
+                            <span class="article-source">{{ article.source_name }}</span>
+                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
+                                <h3>{{ article.title }}</h3>
+                            </a>
+                            <div class="ai-insight">
+                                <strong>Insight IA:</strong>
+                                <p>{{ article.ai_comment }}</p>
+                            </div>
+                            {% if article.reel_script %}
+                            <details class="reel-script">
+                                <summary><i class='bx bxl-tiktok'></i> Guion Vertical</summary>
+                                <div class="script-content">
+                                    {{ article.reel_script | replace('\n', '<br>') | safe }}
+                                </div>
+                            </details>
+                            {% endif %}
+                            <a href="{{ article.link }}" target="_blank" class="read-more">Ver noticia completa <i class='bx bx-right-arrow-alt'></i></a>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- ══ Sección: En las Regiones ══════════════════════════════════ -->
+        {% if departments_map %}
+        <div id="regiones" class="section-title">
+            <h2>En las Regiones</h2>
+            <hr>
         </div>
+
+        <div class="regions-container" style="margin-bottom: 60px;">
+            <div class="regions-tabs" id="dept-tabs">
+                {% for dept, arts in departments_map.items() %}
+                <div class="region-tab {% if loop.first %}active{% endif %}" data-dept="{{ loop.index }}">
+                    {{ dept }} ({{ arts | length }})
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="regions-bodies">
+                {% for dept, arts in departments_map.items() %}
+                <div class="region-content {% if loop.first %}active{% endif %}" id="dept-content-{{ loop.index }}">
+                    <div class="news-grid">
+                        {% for article in arts %}
+                        <article class="article-card" style="border-top: 3px solid #6366f1;">
+                            <span class="article-source">{{ article.source_name }}</span>
+                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
+                                <h3>{{ article.title }}</h3>
+                            </a>
+                            <div class="ai-insight">
+                                <p>{{ article.ai_comment[:180] }}...</p>
+                            </div>
+                            <a href="{{ article.link }}" target="_blank" class="read-more">Ver noticia <i class='bx bx-right-arrow-alt'></i></a>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ Sección: Radar Global ══════════════════════════════════════ -->
+        <div id="global" class="section-title">
+            <h2>Radar Tecnológico Global</h2>
+            <hr>
+        </div>
+
+        {% if days_global %}
+            {% for day in days_global %}
+            <div class="day-group" id="glb-day-{{ loop.index }}">
+
+                <div class="day-header{% if not loop.first %} collapsed{% endif %}"
+                     data-target="glb-body-{{ loop.index }}">
+                    <span class="day-label">
+                        <i class='bx bx-calendar-alt' style="vertical-align:-2px; margin-right:4px;"></i>
+                        {{ day.label }}
+                    </span>
+                    <span class="day-count">{{ day.articles | length }} noticia{{ 's' if day.articles | length != 1 }}</span>
+                    <span class="day-sep"></span>
+                    <span class="day-toggle"><i class='bx bx-chevron-down'></i></span>
+                </div>
+
+                <div class="day-body{% if not loop.first %} collapsed{% endif %}" id="glb-body-{{ loop.index }}">
+                    <div class="news-grid">
+                        {% for article in day.articles %}
+                        <article class="article-card">
+                            <div class="article-img-wrapper">
+                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=600' }}" alt="Global News">
+                            </div>
+                            <span class="article-source">{{ article.source_name }}</span>
+                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
+                                <h3>{{ article.title }}</h3>
+                            </a>
+                            <div class="ai-insight">
+                                <strong>Insight IA:</strong>
+                                <p>{{ article.ai_comment }}</p>
+                            </div>
+                            {% if article.reel_script %}
+                            <details class="reel-script">
+                                <summary><i class='bx bxl-tiktok'></i> Guion Vertical</summary>
+                                <div class="script-content">
+                                    {{ article.reel_script | replace('\n', '<br>') | safe }}
+                                </div>
+                            </details>
+                            {% endif %}
+                            <a href="{{ article.link }}" target="_blank" class="read-more">Ver noticia completa <i class='bx bx-right-arrow-alt'></i></a>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#888; margin-bottom:40px;">No hay artículos globales aún.</p>
+        {% endif %}
+
     </main>
 
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-logo" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <img src="/static/logo-v2.png" alt="Logo" style="height: 40px; filter: brightness(0) invert(1);">
+                <span>EL TECH CRIOLLO</span>
+            </div>
+            <p>Monitoreando el pulso de la innovación tecnológica. Impulsado por IA y curado por humanos.</p>
+            <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.6;">&copy; 2026 Tech Criollo Intelligence Hub. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
     <!-- Floating Notification -->
-    <div id="toast" class="toast glass-panel">
-        <i class='bx bx-cog bx-spin'></i> <span id="toast-msg">Scraper Invocado..</span>
+    <div id="toast" class="toast">
+        <i class='bx bx-cog bx-spin'></i> <span id="toast-msg">Scraper Invocado...</span>
     </div>
 
     <script>
-        // Selectores de Elementos
-        const btnScrape = document.getElementById('btn-scrape');
-        const btnTestTg = document.getElementById('btn-test-tg');
-        const toast = document.getElementById('toast');
+        // ── Fecha actual ─────────────────────────────────────────────────
+        const dateEl = document.getElementById('current-date');
+        const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateEl.innerText = new Date().toLocaleDateString('es-ES', opts);
+
+        // ── Colapsar / Expandir días ──────────────────────────────────────
+        document.querySelectorAll('.day-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const targetId = header.dataset.target;
+                const body = document.getElementById(targetId);
+                const isCollapsed = header.classList.contains('collapsed');
+
+                header.classList.toggle('collapsed', !isCollapsed);
+                body.classList.toggle('collapsed', !isCollapsed);
+            });
+        });
+
+        // ── Toast helper ─────────────────────────────────────────────────
+        const toast    = document.getElementById('toast');
         const toastMsg = document.getElementById('toast-msg');
 
-        function showNotification(msg, duration = 3000) {
+        function showNotification(msg, duration = 3500) {
             toastMsg.innerText = msg;
             toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, duration);
+            setTimeout(() => toast.classList.remove('show'), duration);
         }
 
-        // Event Listener para Escaneo de Noticias
+        // ── Botón Escanear ────────────────────────────────────────────────
+        const btnScrape = document.getElementById('btn-scrape');
         if (btnScrape) {
             btnScrape.addEventListener('click', async () => {
-                const originalContent = btnScrape.innerHTML;
+                const orig = btnScrape.innerHTML;
                 try {
                     btnScrape.disabled = true;
-                    btnScrape.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Moliendo Data...";
-                    showNotification("Iniciando análisis asíncrono...");
-
-                    const response = await fetch('/api/scrape', { method: 'POST' });
-                    const data = await response.json();
-
-                    showNotification("Crawler trabajando en fondo. Recargando en 5s...");
-                    
-                    // Espera visual para que el usuario sienta que algo pasó
-                    setTimeout(() => {
-                        location.reload();
-                    }, 5000);
-
-                } catch (error) {
-                    showNotification("Fallo de red o servidor.");
+                    btnScrape.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Analizando...";
+                    showNotification("Iniciando análisis autónomo...");
+                    await fetch('/api/scrape', { method: 'POST' });
+                    showNotification("Crawler trabajando. Recargando en unos segundos...");
+                    setTimeout(() => location.reload(), 5000);
+                } catch {
+                    showNotification("Error de conexión con el servidor.");
                     btnScrape.disabled = false;
-                    btnScrape.innerHTML = originalContent;
+                    btnScrape.innerHTML = orig;
                 }
             });
         }
 
-        // Event Listener para Prueba de Telegram
+        // ── Botón Telegram ────────────────────────────────────────────────
+        const btnTestTg = document.getElementById('btn-test-tg');
         if (btnTestTg) {
             btnTestTg.addEventListener('click', async () => {
-                const originalContent = btnTestTg.innerHTML;
+                const orig = btnTestTg.innerHTML;
                 try {
                     btnTestTg.disabled = true;
-                    btnTestTg.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Enviando...";
-
-                    const response = await fetch('/api/test-telegram', { method: 'POST' });
-                    const data = await response.json();
-
-                    if (response.ok) {
-                        alert("¡Exito! Revisa tu Telegram.");
-                    } else {
-                        alert("Error: " + data.message);
-                    }
-                } catch (error) {
-                    alert("No se pudo conectar con la API.");
+                    btnTestTg.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i>...";
+                    const res  = await fetch('/api/test-telegram', { method: 'POST' });
+                    const data = await res.json();
+                    showNotification(res.ok ? "¡Éxito! Mensaje enviado." : "Error: " + data.message);
+                } catch {
+                    showNotification("Fallo al conectar con la API.");
                 } finally {
                     btnTestTg.disabled = false;
-                    btnTestTg.innerHTML = originalContent;
+                    btnTestTg.innerHTML = orig;
                 }
             });
         }
+        // ── Tabs de Departamentos ──────────────────────────────────────────
+        document.querySelectorAll('.region-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const deptId = tab.dataset.dept;
+                
+                // Desactivar todos
+                document.querySelectorAll('.region-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.region-content').forEach(c => c.classList.remove('active'));
+                
+                // Activar actual
+                tab.classList.add('active');
+                document.getElementById('dept-content-' + deptId).classList.add('active');
+            });
+        });
     </script>
 </body>
 </html>

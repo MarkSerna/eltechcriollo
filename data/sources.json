@@ -53,6 +53,12 @@
         "region": "colombia"
     },
     {
+        "name": "La Crónica del Quindío",
+        "url": "https://www.cronicadelquindio.com/rss/",
+        "type": "rss",
+        "region": "colombia"
+    },
+    {
         "name": "Diario del Huila",
         "url": "https://diariodelhuila.com/feed/",
         "type": "rss",

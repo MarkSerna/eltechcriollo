@@ -1,4 +1,4 @@
-import requests
+import httpx
 from modules.utils.logger import logger
 from modules.models.config import config
 from modules.models.source import ScrapedArticle
@@ -10,21 +10,21 @@ class AIManager:
         self.base_url = config.ai.ollama_url
         self.model = config.ai.ollama_model
         
-    def ping(self) -> bool:
+    async def ping(self) -> bool:
         """Revisa si el servidor de ollama está disponible y vivo."""
         try:
-            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
-            return response.status_code == 200
-        except requests.RequestException:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.base_url}/api/tags", timeout=5.0)
+                return response.status_code == 200
+        except httpx.RequestError:
             return False
 
-    def generate_comment(self, article: ScrapedArticle) -> str:
+    async def generate_comment(self, article: ScrapedArticle) -> str:
         """Emite una petición de inferencia a Ollama obteniendo comentario sátirico / tech del Tech Criollo."""
-        if not self.ping():
+        if not await self.ping():
             logger.warning(f"Ollama inalcanzable en {self.base_url}. Se omite inferencia.")
             return "Ollama no está disponible. Requiere verificar host local."
 
-        # Prompt system engineering
         prompt = f"""Actúa como un Analista de Tecnología experto y redactor profesional. 
         Tu tarea es redactar una versión propia y original de la siguiente noticia en español formal. 
         
@@ -50,20 +50,21 @@ class AIManager:
         }
         
         try:
-            response = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=120)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("response", "").strip()
-        except requests.RequestException as e:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=120.0)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("response", "").strip()
+        except httpx.RequestError as e:
             logger.error(f"Falla HTTP interactuando con Ollama: {e}")
             return "Error contactando a la Inteligencia Artificial Local."
         except Exception as e:
             logger.error(f"Error inesperado en inferencia LLM: {e}")
             return "Error interno en Generación IA."
 
-    def generate_reel_script(self, article: ScrapedArticle) -> str:
+    async def generate_reel_script(self, article: ScrapedArticle) -> str:
         """Emite una petición secundaria para crear un guion explosivo de formato vertical."""
-        if not self.ping():
+        if not await self.ping():
             return "Ollama inaccesible."
 
         prompt = f"""Actúa como un creador de contenido viral. Escribe un guion corto (máximo 45 segundos) para un Reel/TikTok basado en esta noticia tecnológica. 
@@ -88,17 +89,18 @@ class AIManager:
         }
         
         try:
-            response = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=120)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("response", "").strip()
+            async with httpx.AsyncClient() as client:
+                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=120.0)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("response", "").strip()
         except Exception as e:
             logger.error(f"Error generando guion: {e}")
             return "Fallo generando guion viral."
 
-    def is_tech_news(self, article: ScrapedArticle) -> bool | None:
+    async def is_tech_news(self, article: ScrapedArticle) -> bool | None:
         """Determinas con IA si la noticia es puramente tecnológica o de digitalización gubernamental/general."""
-        if not self.ping():
+        if not await self.ping():
             return None # Fallback a validación de palabras clave si Ollama no está disponible
 
         prompt = f"""Responde únicamente con SI o NO.
@@ -120,11 +122,12 @@ Tu respuesta (SI o NO):"""
         }
         
         try:
-            response = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=60)
-            response.raise_for_status()
-            data = response.json()
-            answer = data.get("response", "").strip().upper()
-            return answer.startswith("SI")
+            async with httpx.AsyncClient() as client:
+                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=60.0)
+                response.raise_for_status()
+                data = response.json()
+                answer = data.get("response", "").strip().upper()
+                return answer.startswith("SI")
         except Exception as e:
             logger.error(f"Error comprobando validez de tech en IA: {e}")
             return None

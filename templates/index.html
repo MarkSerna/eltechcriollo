@@ -234,7 +234,7 @@
                         {% for article in day.articles %}
                         <article class="article-card">
                             <div class="article-img-wrapper">
-                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600' }}" alt="News">
+                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600' }}" alt="News" loading="lazy">
                             </div>
                             <span class="article-source">{{ article.source_name }}</span>
                             <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
@@ -327,7 +327,7 @@
                         {% for article in day.articles %}
                         <article class="article-card">
                             <div class="article-img-wrapper">
-                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=600' }}" alt="Global News">
+                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=600' }}" alt="Global News" loading="lazy">
                             </div>
                             <span class="article-source">{{ article.source_name }}</span>
                             <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">

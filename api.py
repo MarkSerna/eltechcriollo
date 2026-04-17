@@ -100,10 +100,11 @@ async def home(request: Request):
         dept = article.get("department") or "Nacional"
         dept_raw[dept].append(article)
 
-    # Ordenar: primero departamentos con más noticias, Nacional siempre al final
+    # Ordenar: primero departamentos con más noticias, sumando puntos artificiales al Eje Cafetero
+    EJE_CAFETERO = {"Caldas", "Risaralda", "Quindío", "Quindio"}
     sorted_depts = sorted(
         [(dept, arts) for dept, arts in dept_raw.items() if dept != "Nacional"],
-        key=lambda x: len(x[1]),
+        key=lambda x: len(x[1]) + (100 if x[0] in EJE_CAFETERO else 0),
         reverse=True,
     )
     if "Nacional" in dept_raw:
@@ -133,7 +134,7 @@ async def test_telegram():
     test_file = Path("reports/test_connection.md")
     test_file.write_text("# Test de Conexión 🚀\n\nSi estás recibiendo esto, ¡tu integración con **El Tech Criollo** está perfecta!\n\n---\n*Enviado desde el Dashboard Local*")
 
-    success = nm.send_telegram_file(test_file)
+    success = await nm.send_telegram_file(test_file)
     if success:
         return JSONResponse(content={"status": "ok", "message": "¡Mensaje de prueba enviado! Revisa tu Telegram."})
     else:
@@ -142,9 +143,8 @@ async def test_telegram():
 @app.post("/api/scrape")
 async def trigger_scrape(background_tasks: BackgroundTasks):
     """Endpoint para forzar que el robot extraiga y Ollama analice asíncronamente."""
-    logger.info("🚀 Petición de Scraping forzada vía API Web..")
-    def background_job():
-        main_orchestrator()
-
-    background_tasks.add_task(background_job)
-    return JSONResponse(content={"status": "working", "message": "Scraping e Inferencia IA ha comenzado en fondo. Recarga la página en unos segundos."})
+    logger.info("🚀 Petición de Scraping forzada vía API Web (Asíncrona).")
+    
+    background_tasks.add_task(main_orchestrator)
+    
+    return JSONResponse(content={"status": "working", "message": "Scraping e Inferencia IA ha comenzado en fondo de forma asíncrona. Recarga la página en unos segundos."})

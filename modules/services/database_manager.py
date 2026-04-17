@@ -12,7 +12,9 @@ class DatabaseManager:
     def _get_connection(self) -> Optional[sqlite3.Connection]:
         """Obtiene una conexión limpia de SQLite."""
         try:
-            return sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("PRAGMA journal_mode=WAL;")
+            return conn
         except sqlite3.Error as e:
             logger.error(f"Error conectando a SQLite en {self.db_path}: {e}")
             return None
@@ -77,6 +79,28 @@ class DatabaseManager:
         except sqlite3.Error as e:
             logger.error(f"Error verificando enlace {url}: {e}")
             return False
+        finally:
+            conn.close()
+
+    def get_processed_urls(self, urls: list[str]) -> set[str]:
+        """Acepta una lista de URLs y devuelve un set con las que YA están en la BD, en una sola consulta."""
+        if not urls:
+            return set()
+            
+        conn = self._get_connection()
+        if not conn:
+            return set()
+            
+        try:
+            placeholders = ','.join('?' for _ in urls)
+            query = f"SELECT url FROM articles WHERE url IN ({placeholders})"
+            cursor = conn.cursor()
+            cursor.execute(query, urls)
+            # Devuelve solo las que sí fueron encontradas
+            return {row[0] for row in cursor.fetchall()}
+        except sqlite3.Error as e:
+            logger.error(f"Error en consulta batch de enlaces: {e}")
+            return set()
         finally:
             conn.close()
 

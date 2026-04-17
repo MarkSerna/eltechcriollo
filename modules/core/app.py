@@ -1,7 +1,8 @@
 import json
+import asyncio
+import re
 from dotenv import load_dotenv
 
-# Cargar variables de entorno primordiales
 load_dotenv()
 
 from modules.models.config import config
@@ -16,22 +17,24 @@ from modules.services.ai_manager import AIManager
 from modules.services import department_detector
 from deep_translator import GoogleTranslator
 
-def main_orchestrator():
-    """Lógica principal de orquestación, aislada y sin acoplamiento a scripts en crudo."""
+# Concurrency limits
+# Avoid blasting Ollama with dozens of heavy inferences simultaneously
+ai_semaphore = asyncio.Semaphore(2)
+
+async def main_orchestrator():
+    """Lógica principal de orquestación 100% asíncrona y ultrarrápida."""
     logger.info("=========================================")
-    logger.info("🤖 Iniciando Orquestador El Tech Criollo")
+    logger.info("🤖 Iniciando Orquestador El Tech Criollo (ASYNC)")
     logger.info("=========================================")
     
-    # 1. Inicialización e Indentificación de dependencias
     db_manager = DatabaseManager()
+    await asyncio.to_thread(db_manager.initialize_schema)
+    
     scraper_manager = ScraperManager()
     report_manager = ReportManager()
     notification_manager = NotificationManager()
     ai_manager = AIManager()
     
-    db_manager.initialize_schema()
-    
-    # 2. Cargar Fuentes de Datos
     sources_path = config.paths.sources_path
     if not sources_path.exists():
         logger.error(f"El archivo de fuentes no existe en la ruta configurada: {sources_path}")
@@ -45,22 +48,25 @@ def main_orchestrator():
         logger.error(f"Error interpretando sources.json: {e}")
         return []
         
-    logger.info(f"Se cargaron correctamente {len(sources)} fuentes para escanear.")
+    logger.info(f"Se cargaron correctamente {len(sources)} fuentes para escanear en paralelo.")
     
-    # 3. Escanear e Inteligencia Cautelosa
     filtered_and_novel_articles = []
     
-    for source in sources:
+    async def process_source(source):
         logger.info(f"🕷 Escaneando: {source.name} via {source.type.upper()}")
-        articles = scraper_manager.fetch(source)
-
+        articles = await scraper_manager.fetch(source)
+        
+        valid_source_articles = []
+        
+        # Pasa 1: Filtro de Novedad BATCH (No estar en BD)
+        urls = [a.link for a in articles]
+        processed_urls = await asyncio.to_thread(db_manager.get_processed_urls, urls)
+        
         for article in articles:
-            # Pasa 1: Filtro de Novedad (No estar en BD)
-            if db_manager.is_processed(article.link):
+            if article.link in processed_urls:
                 continue
 
             # Pasa 2: Filtro Semántico/Palabras Calientes
-            import re
             content = article.get_content_snapshot().lower()
             
             def has_keyword(kw_list, text):
@@ -77,70 +83,78 @@ def main_orchestrator():
             is_valid = has_keyword(config.scraper.keywords, content)
             
             if is_valid and article.region == "colombia":
-                is_tech_ai = ai_manager.is_tech_news(article)
+                async with ai_semaphore:
+                    is_tech_ai = await ai_manager.is_tech_news(article)
+                    
                 if is_tech_ai is True:
                     is_valid = True
                 elif is_tech_ai is False:
                     is_valid = False
-                    logger.debug(f"❌ Rechazado por IA (No es tech puramente): {article.title}")
+                    logger.debug(f"❌ Rechazado por IA (No es tech): {article.title}")
                 else:
                     has_strict = has_keyword(config.scraper.strict_keywords, content)
                     supporting_count = sum(1 for kw in config.scraper.supporting_keywords if re.search(r'\b' + re.escape(kw.lower()) + r'\b', content))
                     if not (has_strict or supporting_count >= 2):
                         is_valid = False
-                        logger.debug(f"❌ Rechazado por Fallback (No es tech): {article.title}")
+                        logger.debug(f"❌ Rechazado por Fallback: {article.title}")
 
             if is_valid:
+                def do_translate(text):
+                    try:
+                        return GoogleTranslator(source='auto', target='es').translate(text)
+                    except Exception as e:
+                        logger.warning(f"Error ocasional traduciendo: {e}")
+                        return None
+                        
+                translated_title = await asyncio.to_thread(do_translate, article.title)
+                if translated_title:
+                    article.title = translated_title
 
-                # TRADUCCIÓN: Convertimos automáticamente títulos en inglés al español
-                try:
-                    translated_title = GoogleTranslator(source='auto', target='es').translate(article.title)
-                    if translated_title:
-                        article.title = translated_title
-                except Exception as e:
-                    logger.warning(f"Error ocasional traduciendo título {article.title[:15]}: {e}")
-
-                # DETECCIÓN DE DEPARTAMENTO: Solo para noticias colombianas
                 if article.region == "colombia":
-                    article.department = department_detector.detect(
-                        article.title, article.summary or ""
-                    )
+                    article.department = department_detector.detect(article.title, article.summary or "")
                     if article.department:
-                        logger.debug(f"📍 Departamento detectado: {article.department} → {article.title[:40]}")
+                        logger.debug(f"📍 Departamento detectado: {article.department}")
 
-                # REEMPLAZO AI: Pedimos opinión al modelo Local de cada noticia valiosa
                 logger.info(f"🤖 Invocando Inteligencia Artificial OLLAMA para: {article.title[:20]}...")
-                article.ai_comment = ai_manager.generate_comment(article)
+                
+                async with ai_semaphore:
+                    # Invocamos en paralelo la petición del comentario y la del reel a Ollama
+                    comment, reel = await asyncio.gather(
+                        ai_manager.generate_comment(article),
+                        ai_manager.generate_reel_script(article)
+                    )
+                    article.ai_comment = comment
+                    article.reel_script = reel
 
-                # REEL SCRIPT: Guion viral para TikTok y YouTube
-                logger.info(f"🎬 Escribiendo guion TikTok para: {article.title[:20]}...")
-                article.reel_script = ai_manager.generate_reel_script(article)
-
-                # Anotamos en base de datos el modelo completo (para UI y evitar duplicados)
-                if db_manager.mark_as_processed(article):
-                    filtered_and_novel_articles.append(article)
+                # Anotamos en base de datos
+                success = await asyncio.to_thread(db_manager.mark_as_processed, article)
+                if success:
+                    valid_source_articles.append(article)
                     logger.debug(f"+ Aceptado y Comentado: {article.title}")
+                    
+        return valid_source_articles
+
+    # Esperamos a que todas las fuentes terminen en paralelo
+    results = await asyncio.gather(*[process_source(src) for src in sources])
+    for res_list in results:
+        filtered_and_novel_articles.extend(res_list)
                     
     logger.info(f"Total de noticias potentes extraídas hoy: {len(filtered_and_novel_articles)}")
     
     # 4. Reportabilidad
-    report_path = report_manager.generate_markdown(filtered_and_novel_articles)
+    report_path = await asyncio.to_thread(report_manager.generate_markdown, filtered_and_novel_articles)
     
     # 5. Notificación Multi-canal
     if report_path:
-        notification_manager = NotificationManager()
-        # 5a. Enviar el reporte completo (Discord / Telegram File)
-        notification_manager.send_discord_file(report_path)
-        notification_manager.send_telegram_file(report_path)
+        await notification_manager.send_discord_file(report_path)
+        await notification_manager.send_telegram_file(report_path)
         
-        # 5b. Enviar noticias destacadas visualmente (Limitado a 5 para evitar spam)
-        # Solo enviamos las que acabamos de filtrar como novedosas en esta sesión
         for article in filtered_and_novel_articles[:5]:
-            notification_manager.send_telegram_visual_news(article)
+            await notification_manager.send_telegram_visual_news(article)
         
-    logger.info("🏁 Orquestación finalizada exitosamente.")
+    logger.info("🏁 Orquestación asíncrona finalizada exitosamente.")
     return filtered_and_novel_articles
 
 if __name__ == "__main__":
     import sys
-    sys.exit(main_orchestrator())
+    sys.exit(asyncio.run(main_orchestrator()))

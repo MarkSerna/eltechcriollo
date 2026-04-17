@@ -51,7 +51,8 @@ class ScraperConfig:
             self.supporting_keywords = [
                 "tecnología", "tech", "innovación", "digital", "aplicación", "plataforma",
                 "datos", "nube", "cloud", "robot", "algoritmo", "chip", "ecommerce",
-                "redes sociales", "smartphone", "5g", "internet", "software", "hardware"
+                "redes sociales", "smartphone", "5g", "internet", "software", "hardware",
+                "eje cafetero", "pereira", "manizales", "armenia", "parquesoft", "risaralda", "quindío", "caldas"
             ]
 
         if self.keywords is None:

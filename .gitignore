@@ -145,6 +145,8 @@ cython_debug/
 .idea/
 
 # Custom project paths
+*.db
+*.sqlite
 data/*.db
 data/*.sqlite
 logs/
@@ -152,3 +154,12 @@ reports/*.md
 !reports/test_connection.md
 node_modules/
 .docker-compose.lock
+scratch/
+
+# IDE & Editor settings
+.vscode/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+Desktop.ini

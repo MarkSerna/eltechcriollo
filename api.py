@@ -20,6 +20,9 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 app = FastAPI(title="El Tech Criollo - Intelligence Hub")
 
+from modules.services.telegram_listener import TelegramBotListener
+import asyncio
+
 # Configuración de Programación Automática (Cada 30 min)
 @app.on_event("startup")
 async def start_scheduler():
@@ -27,6 +30,10 @@ async def start_scheduler():
     scheduler.add_job(main_orchestrator, 'interval', minutes=30)
     scheduler.start()
     logger.info("⏰ Programador activado: Escaneo autónomo cada 30 minutos configurado.")
+    
+    # Iniciar oyente de Chat para Telegram
+    listener = TelegramBotListener()
+    asyncio.create_task(listener.poll())
 
 # Setup directories for static and templates
 static_dir = Path(__file__).parent / "static"
@@ -82,9 +89,8 @@ def _group_by_day(articles: list) -> list:
     return result
 
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    """Renderiza el tablero interactivo de lectura agrupando noticias por día y región."""
+async def render_dashboard(request: Request, is_admin: bool = False):
+    """Función unificada para renderizar el tablero."""
     articles = db.get_todays_articles()
 
     colombia_news = [a for a in articles if a.get("region") == "colombia"]
@@ -121,8 +127,19 @@ async def home(request: Request):
             "days_global":      _group_by_day(global_news),
             "departments_map":  departments_map,
             "global_news":      global_news,
+            "is_admin":         is_admin,
         }
     )
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    """Renderiza el tablero interactivo de lectura (Público)."""
+    return await render_dashboard(request, is_admin=False)
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_home(request: Request):
+    """Renderiza el tablero interactivo de lectura (Admin)."""
+    return await render_dashboard(request, is_admin=True)
 
 
 from modules.services.notification_manager import NotificationManager
@@ -131,10 +148,9 @@ from modules.services.notification_manager import NotificationManager
 async def test_telegram():
     """Envía un mini-reporte de prueba para verificar que el Bot funciona."""
     nm = NotificationManager()
-    test_file = Path("reports/test_connection.md")
-    test_file.write_text("# Test de Conexión 🚀\n\nSi estás recibiendo esto, ¡tu integración con **El Tech Criollo** está perfecta!\n\n---\n*Enviado desde el Dashboard Local*")
-
-    success = await nm.send_telegram_file(test_file)
+    
+    success = await nm.send_telegram_message("🚀 **Test de Conexión**\n\nSi estás recibiendo esto en tu canal, ¡tu integración con **El Tech Criollo** está perfecta!\n\n---\n*Enviado desde el Dashboard Local*")
+    
     if success:
         return JSONResponse(content={"status": "ok", "message": "¡Mensaje de prueba enviado! Revisa tu Telegram."})
     else:
@@ -148,3 +164,35 @@ async def trigger_scrape(background_tasks: BackgroundTasks):
     background_tasks.add_task(main_orchestrator)
     
     return JSONResponse(content={"status": "working", "message": "Scraping e Inferencia IA ha comenzado en fondo de forma asíncrona. Recarga la página en unos segundos."})
+# reload
+
+from pydantic import BaseModel
+
+class ArticleResendRequest(BaseModel):
+    title: str
+    link: str
+    source_name: str
+    ai_comment: str
+    image_url: str = ""
+
+@app.post("/api/resend-article")
+async def resend_article(request: ArticleResendRequest):
+    """Endpoint para reenviar una noticia manualmente a Telegram desde el Dashboard."""
+    logger.info(f"Reenviando artículo a Telegram: {request.title}")
+    
+    nm = NotificationManager()
+    
+    class FakeArticle:
+        def __init__(self, data):
+            self.title = data.title
+            self.link = data.link
+            self.source_name = data.source_name
+            self.ai_comment = data.ai_comment
+            self.image_url = data.image_url
+
+    success = await nm.send_telegram_visual_news(FakeArticle(request))
+    
+    if success:
+        return JSONResponse(content={"status": "ok", "message": "¡Noticia reenviada con éxito a Telegram!"})
+    else:
+        return JSONResponse(status_code=500, content={"status": "error", "message": "Fallo al reenviar la noticia."})

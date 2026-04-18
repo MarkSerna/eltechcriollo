@@ -385,8 +385,135 @@ footer {
     box-shadow: var(--shadow-md);
     transform: translateY(200%);
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 2000;
+    z-index: 10000;
     font-weight: 700;
+    isolation: isolate;
 }
 
 .toast.show { transform: translateY(0); }
+
+/* --- Modal --- */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+/* Blur en pseudo-elemento para no crear stacking context que bloquee el toast */
+.modal-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: -1;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    background: var(--bg-main);
+    width: 90%;
+    max-width: 850px;
+    max-height: 90vh;
+    border-radius: 4px;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    overflow: hidden;
+}
+
+.modal-overlay.active .modal-content {
+    transform: translateY(0);
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.modal-header h2 {
+    font-family: var(--font-serif);
+    font-weight: 800;
+    font-size: 1.3rem;
+    color: var(--primary);
+    line-height: 1.3;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.btn-close:hover {
+    color: var(--primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.modal-img {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    display: none;
+}
+
+.modal-insight {
+    background: #f8fafc;
+    border-left: 4px solid var(--accent-blue);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.modal-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tag-source {
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--accent);
+}
+
+.article-card {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.article-card:hover {
+    transform: translateY(-4px);
+}
+

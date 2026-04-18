@@ -6,8 +6,9 @@ class SourceConfig:
     """Modelo fuerte para cada sitio web incluido en sources.json."""
     name: str
     url: str
-    type: str  # 'rss', 'html', 'dynamic', 'wpapi', 'mintic'
+    type: str  # 'rss', 'html', 'dynamic', 'wpapi', 'mintic', 'sharepoint', 'sena'
     region: str = "global"  # Por defecto 'global', puede ser 'colombia'
+    require_ai: bool = False  # Si True, el artículo SIEMPRE va a validación IA (sin fallback de keywords)
     selectors: Optional[Dict[str, str]] = None
     extra: Optional[Dict[str, Any]] = None  # Parámetros extra por tipo de fuente
 

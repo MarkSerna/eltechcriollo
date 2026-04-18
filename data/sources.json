@@ -3,19 +3,22 @@
         "name": "SENA - Noticias",
         "url": "https://www.sena.edu.co/",
         "type": "sena",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "Fondo Emprender - Noticias",
         "url": "https://www.fondoemprender.com/SitePages/Noticias.aspx",
         "type": "sharepoint",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "MinTIC - Noticias",
         "url": "https://www.mintic.gov.co/portal/inicio/Sala-de-prensa/Noticias/",
         "type": "mintic",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "Impacto TIC (Colombia)",
@@ -38,37 +41,43 @@
         "name": "La República - Economía",
         "url": "https://www.larepublica.co/rss/economia",
         "type": "rss",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "La Patria (Caldas)",
         "url": "https://www.lapatria.com/rss.xml",
         "type": "rss",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "El Diario (Risaralda)",
         "url": "https://www.eldiario.com.co/feed/",
         "type": "rss",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "La Crónica del Quindío",
         "url": "https://www.cronicadelquindio.com/rss/",
         "type": "rss",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "Diario del Huila",
         "url": "https://diariodelhuila.com/feed/",
         "type": "rss",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "Diario del Sur (Nariño)",
         "url": "https://www.diariodelsur.com.co/feed/",
         "type": "rss",
-        "region": "colombia"
+        "region": "colombia",
+        "require_ai": true
     },
     {
         "name": "TechCrunch",

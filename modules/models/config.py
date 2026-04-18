@@ -39,31 +39,45 @@ class ScraperConfig:
     user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     def __post_init__(self):
+        """Carga los keywords desde tech_dictionary.json si existen; usa fallback si no."""
+        import json
+        from pathlib import Path
+
+        dict_path = Path("data/tech_dictionary.json")
+        dictionary = {}
+        if dict_path.exists():
+            try:
+                with open(dict_path, "r", encoding="utf-8") as f:
+                    dictionary = json.load(f)
+            except Exception:
+                pass  # Fallback a listas hardcodeadas abajo
+
         if self.strict_keywords is None:
-            self.strict_keywords = [
-                "IA", "inteligencia artificial", "modelos de lenguaje", "machine learning",
-                "aprendizaje automático", "startup", "startups", "desarrollo de software",
-                "ciberseguridad", "automatización", "semiconductor", "criptomoneda", 
-                "blockchain", "fintech", "GPT", "LLM", "programación", "código"
-            ]
-            
-        if self.supporting_keywords is None:
-            self.supporting_keywords = [
-                "tecnología", "tech", "innovación", "digital", "aplicación", "plataforma",
-                "datos", "nube", "cloud", "robot", "algoritmo", "chip", "ecommerce",
-                "redes sociales", "smartphone", "5g", "internet", "software", "hardware",
-                "eje cafetero", "pereira", "manizales", "armenia", "parquesoft", "risaralda", "quindío", "caldas"
+            self.strict_keywords = [t.lower() for t in dictionary.get("TECH_STRICT", [])] or [
+                "inteligencia artificial", "machine learning", "aprendizaje automático",
+                "ciberseguridad", "blockchain", "criptomoneda", "semiconductor",
+                "startup tecnológica", "desarrollo de software", "programación",
+                "LLM", "GPT", "deep learning", "red neuronal", "computación cuántica",
+                "internet de las cosas", "IoT", "big data", "ciencia de datos"
             ]
 
-        if self.keywords is None:
-            self.keywords = self.strict_keywords + self.supporting_keywords + [
-                "colombia tech", "ecosistema tech", "emprendimiento",
-                "AI", "artificial intelligence", "deep learning",
-                "security", "privacy", "developer", "model",
-                "neural", "autonomous", "electric", "funding",
-                "venture", "billion", "acquisition", "Google", "Apple", "Meta",
-                "OpenAI", "Microsoft", "Amazon", "Tesla", "NVIDIA"
+        if self.supporting_keywords is None:
+            self.supporting_keywords = [t.lower() for t in dictionary.get("TECH_SUPPORTING", [])] or [
+                "tecnología", "tech", "software", "hardware", "aplicación", "plataforma digital",
+                "nube", "cloud", "algoritmo", "chip", "e-commerce", "redes sociales",
+                "smartphone", "5G", "conectividad", "banda ancha", "automatización",
+                "parquesoft", "innovación tecnológica", "ecosistema tech"
             ]
+
+        # Entidades tech para búsqueda de keywords rápida
+        tech_entities = [t.lower() for t in dictionary.get("TECH_ENTITIES", [])]
+
+        if self.keywords is None:
+            self.keywords = list(set(
+                self.strict_keywords
+                + self.supporting_keywords
+                + tech_entities
+            ))
 
 
 @dataclass

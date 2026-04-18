@@ -86,6 +86,37 @@ class NotificationManager:
             logger.error(f"Error asíncrono inesperado enviando notificación a Telegram: {e}")
             return False
 
+    async def send_telegram_message(self, text: str, parse_mode: str = "Markdown") -> bool:
+        """Envía un mensaje de texto simple o formateado a Telegram."""
+        bot_token = config.telegram.bot_token
+        chat_id = config.telegram.chat_id
+        
+        if not bot_token or not chat_id:
+            logger.debug("Credenciales de Telegram no proporcionadas, saltando notificación.")
+            return False
+            
+        try:
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            data = {
+                'chat_id': chat_id,
+                'text': text,
+                'parse_mode': parse_mode
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, data=data, timeout=20.0)
+                response.raise_for_status()
+                
+            logger.info("Mensaje de texto enviado a Telegram exitosamente.")
+            return True
+            
+        except httpx.RequestError as e:
+            logger.error(f"Error HTTP enviando mensaje a Telegram: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error asíncrono inesperado enviando mensaje a Telegram: {e}")
+            return False
+
     async def send_telegram_visual_news(self, article) -> bool:
         """Envía una foto con un pie de página atractivo (resumen + comentario AI)."""
         bot_token = config.telegram.bot_token
@@ -102,38 +133,59 @@ class NotificationManager:
             safe_comment = html.escape(article.ai_comment)
             safe_source = html.escape(article.source_name)
             
-            # Construir el pie de página (Caption) usando HTML
+            # Construir el pie de página usando HTML
             caption = (
-                f"📰 <b>{safe_title}</b>\n\n"
-                f"📝 <b>Resumen del Analista:</b>\n{safe_comment}\n\n"
-                f"📍 <b>Fuente:</b> {safe_source}\n"
-                f"🔗 <a href='{article.link}'>Leer noticia original</a>"
+                f"⚡ <b>ÚLTIMA HORA TECH</b> ⚡\n\n"
+                f"💻 <b>{safe_title}</b>\n\n"
+                f"<blockquote>{safe_comment}</blockquote>\n\n"
+                f"📡 <b>Vía:</b> <i>{safe_source}</i>\n"
+                f"🔗 <a href='{article.link}'>Leer artículo completo</a>\n\n"
+                f"#TechCriollo #Noticias #Tecnología"
             )
             
-            data = {
-                'chat_id': chat_id,
-                'caption': caption,
-                'parse_mode': 'HTML'
-            }
-            
             async with httpx.AsyncClient() as client:
-                # Si hay imagen, la enviamos por URL, si no, fallamos al modo texto simple
+                sent = False
+                
+                # Intento 1: enviar con foto si hay imagen
                 if article.image_url:
-                    data['photo'] = article.image_url
-                    url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
-                    response = await client.post(url, data=data, timeout=20.0)
-                    response.raise_for_status()
-                else:
-                    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-                    data['text'] = caption
-                    response = await client.post(url, data=data, timeout=20.0)
-                    response.raise_for_status()
-                    
-            logger.info(f"Noticia visual enviada a Telegram: {article.title[:30]}...")
-            return True
+                    photo_url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
+                    photo_data = {
+                        'chat_id': chat_id,
+                        'caption': caption,
+                        'parse_mode': 'HTML',
+                        'photo': article.image_url
+                    }
+                    try:
+                        response = await client.post(photo_url, data=photo_data, timeout=20.0)
+                        if response.status_code == 200:
+                            sent = True
+                            logger.info(f"Noticia visual enviada a Telegram (foto): {article.title[:50]}")
+                        else:
+                            tg_error = response.json().get('description', 'desconocido')
+                            logger.warning(f"sendPhoto falló ({response.status_code}): {tg_error}. Intentando texto puro...")
+                    except Exception as photo_err:
+                        logger.warning(f"Error en sendPhoto: {photo_err}. Intentando texto puro...")
+
+                # Intento 2 (fallback): enviar como texto si la foto falló o no hay imagen
+                if not sent:
+                    msg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                    msg_data = {
+                        'chat_id': chat_id,
+                        'text': caption,
+                        'parse_mode': 'HTML'
+                    }
+                    response = await client.post(msg_url, data=msg_data, timeout=20.0)
+                    if response.status_code == 200:
+                        sent = True
+                        logger.info(f"Noticia enviada a Telegram (texto): {article.title[:50]}")
+                    else:
+                        tg_error = response.json().get('description', 'desconocido')
+                        logger.error(f"sendMessage falló ({response.status_code}): {tg_error}")
+
+            return sent
             
         except httpx.RequestError as e:
-            logger.error(f"Error HTTP enviando noticia visual a Telegram: {e}")
+            logger.error(f"Error de red enviando noticia a Telegram: {e}")
             return False
         except Exception as e:
             logger.error(f"Error inesperado en envío visual: {e}")

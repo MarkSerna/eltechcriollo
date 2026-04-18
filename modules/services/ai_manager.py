@@ -20,24 +20,24 @@ class AIManager:
             return False
 
     async def generate_comment(self, article: ScrapedArticle) -> str:
-        """Emite una petición de inferencia a Ollama obteniendo comentario sátirico / tech del Tech Criollo."""
+        """Emite una petición de inferencia a Ollama obteniendo una redacción periodística objetiva de la noticia tecnológica."""
         if not await self.ping():
             logger.warning(f"Ollama inalcanzable en {self.base_url}. Se omite inferencia.")
             return "Ollama no está disponible. Requiere verificar host local."
 
-        prompt = f"""Actúa como un Analista de Tecnología experto y redactor profesional. 
-        Tu tarea es redactar una versión propia y original de la siguiente noticia en español formal. 
+        prompt = f"""Escribe una noticia original y profesional sobre tecnología, como si fueras el periodista primario (redactor de "El Tech Criollo").
         
         REGLAS ESTRICTAS:
-        1. NO utilices jergas, modismos locales ni palabras informales (PROHIBIDO usar 'parce', 'bacán', etc.).
-        2. El tono debe ser profesional, serio y experto.
-        3. Redacta un párrafo detallado de entre 3 y 4 líneas que resuma los puntos clave.
-        4. Asegúrate que la redacción sea original para evitar que parezca un plagio directo de la fuente.
+        1. Escribe en tercera persona de forma clara, relatando los hechos periodísticos principales (qué, quién, cómo, por qué).
+        2. NO hables sobre la noticia, simplemente DA LA NOTICIA como contenido propio. Prohibido usar introducciones como "La noticia dice", o actuar como si fueras una IA analizándola.
+        3. Si la noticia trata sobre becas, convocatorias o educación (ej. SENA, MinTIC), DEBES extraer y listar mediante viñetas (-) los cursos, áreas de tecnología o habilidades específicas mencionadas.
+        4. AL FINAL DEL TEXTO DEBES CITAR OBLIGATORIAMENTE LA FUENTE ORIGINAL de forma natural. Por ejemplo: "Según el reporte publicado por X..." o "De acuerdo con la investigación de Y...".
+        5. DEBES insertar OBLIGATORIAMENTE el siguiente enlace exacto en la mención a la fuente: {article.link}
         
-        Noticia Título: {article.title}
-        Extracto/Contexto: {article.summary[:500]}
+        Noticia Base (Título): {article.title}
+        Extracto Original: {article.summary[:500]}
         
-        Devuelve SOLO la redacción original como string directo, sin prefijos ni títulos. Salida directa:"""
+        Devuelve SOLO la noticia redactada final, estructurada en un par de párrafos, con su esquema de citación y link integrado. Salida:"""
 
         payload = {
             "model": self.model,
@@ -131,3 +131,30 @@ Tu respuesta (SI o NO):"""
         except Exception as e:
             logger.error(f"Error comprobando validez de tech en IA: {e}")
             return None
+
+    async def chat(self, user_message: str) -> str:
+        """Permite interactuar de manera conversacional libre con el modelo Ollama."""
+        if not await self.ping():
+            return "Lo siento, mi servidor cerebral (Ollama) está apagado o fuera de línea."
+
+        prompt = user_message
+
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.7,
+                "num_ctx": 4096
+            }
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=120.0)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("response", "").strip()
+        except Exception as e:
+            logger.error(f"Error en chat libre con IA: {e}")
+            return "Se me fundieron los cables intentando procesar esa petición."

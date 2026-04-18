@@ -1,6 +1,5 @@
 import json
 import asyncio
-import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,6 +14,7 @@ from modules.services.report_manager import ReportManager
 from modules.services.notification_manager import NotificationManager
 from modules.services.ai_manager import AIManager
 from modules.services import department_detector
+from modules.services import tech_filter as TechFilter
 from deep_translator import GoogleTranslator
 
 # Concurrency limits
@@ -66,37 +66,40 @@ async def main_orchestrator():
             if article.link in processed_urls:
                 continue
 
-            # Pasa 2: Filtro Semántico/Palabras Calientes
-            content = article.get_content_snapshot().lower()
-            
-            def has_keyword(kw_list, text):
-                for kw in kw_list:
-                    kw_lower = kw.lower()
-                    if len(kw_lower) <= 3:
-                        if re.search(r'\b' + re.escape(kw_lower) + r'\b', text):
-                            return True
-                    else:
-                        if re.search(r'\b' + re.escape(kw_lower) + r'(s|es|a|o|as|os)?\b', text):
-                            return True
-                return False
+            # Pasa 2: Filtro TechFilter (scoring ponderado + exclusión negativa)
+            content = article.get_content_snapshot()
+            require_ai = getattr(source, 'require_ai', False)
 
-            is_valid = has_keyword(config.scraper.keywords, content)
-            
-            if is_valid and article.region == "colombia":
+            send_to_ai, tf_score, tf_reason = TechFilter.needs_ai_validation(content, require_ai)
+
+            # Si el score es 0 y es fuente require_ai → descarte inmediato sin consultar IA
+            if not send_to_ai and tf_score == 0 and require_ai:
+                logger.debug(f"⛔ [{source.name}] Sin señal tech. Descartado antes de IA: {article.title[:60]}")
+                continue
+
+            # Si no requiere IA y el score ya supera el umbral → pasa directamente
+            is_valid = False
+            if not require_ai and not send_to_ai and tf_score >= 5:
+                is_valid = True
+                logger.debug(f"✅ [{source.name}] Pasa filtro keyword (score={tf_score}): {article.title[:60]}")
+            elif send_to_ai or (not require_ai and tf_score >= 1):
+                # Hay señal tech o fuente requiere IA → consultar modelo
                 async with ai_semaphore:
                     is_tech_ai = await ai_manager.is_tech_news(article)
-                    
+
                 if is_tech_ai is True:
                     is_valid = True
                 elif is_tech_ai is False:
                     is_valid = False
-                    logger.debug(f"❌ Rechazado por IA (No es tech): {article.title}")
+                    logger.debug(f"❌ [{source.name}] Rechazado por IA: {article.title[:60]}")
                 else:
-                    has_strict = has_keyword(config.scraper.strict_keywords, content)
-                    supporting_count = sum(1 for kw in config.scraper.supporting_keywords if re.search(r'\b' + re.escape(kw.lower()) + r'\b', content))
-                    if not (has_strict or supporting_count >= 2):
-                        is_valid = False
-                        logger.debug(f"❌ Rechazado por Fallback: {article.title}")
+                    # Ollama no disponible — fallback más estricto: score >= 5
+                    if require_ai:
+                        is_valid = False  # Fuentes require_ai NUNCA pasan sin IA
+                        logger.debug(f"⛔ [{source.name}] Ollama no disponible. Fuente require_ai → descartado: {article.title[:60]}")
+                    else:
+                        is_valid = tf_score >= 5
+                        logger.debug(f"{'✅' if is_valid else '❌'} [{source.name}] Ollama no disponible. Fallback score={tf_score}: {article.title[:60]}")
 
             if is_valid:
                 def do_translate(text):
@@ -126,6 +129,15 @@ async def main_orchestrator():
                     article.ai_comment = comment
                     article.reel_script = reel
 
+                # Si no hay imagen disponible, capturar un screenshot de fallback
+                if not article.image_url:
+                    import hashlib
+                    url_hash = hashlib.md5(article.link.encode('utf-8')).hexdigest()
+                    logger.info(f"📸 Tomando captura de pantalla de respaldo para: {article.title[:20]}...")
+                    fallback_img = await scraper_manager.capture_screenshot(article.link, url_hash)
+                    if fallback_img:
+                        article.image_url = fallback_img
+
                 # Anotamos en base de datos
                 success = await asyncio.to_thread(db_manager.mark_as_processed, article)
                 if success:
@@ -147,7 +159,6 @@ async def main_orchestrator():
     # 5. Notificación Multi-canal
     if report_path:
         await notification_manager.send_discord_file(report_path)
-        await notification_manager.send_telegram_file(report_path)
         
         for article in filtered_and_novel_articles[:5]:
             await notification_manager.send_telegram_visual_news(article)

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=1.2">
+    <link rel="stylesheet" href="/static/style.css?v=1.5">
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 
@@ -173,12 +173,17 @@
         <div class="portal-hero">
             <div class="main-feature">
                 {% if featured %}
-                    <a href="{{ featured.link }}" target="_blank" style="text-decoration: none; color: inherit;">
-                        <img src="{{ featured.image_url if featured.image_url else 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=1200' }}" alt="Featured">
+                    <div style="cursor: pointer;" onclick="openModal(this)"
+                         data-title="{{ featured.title | e }}"
+                         data-source="{{ featured.source_name | e }}"
+                         data-img="{{ featured.image_url if featured.image_url else '' }}"
+                         data-comment="{{ featured.ai_comment | e }}"
+                         data-link="{{ featured.link }}">
+                        <img src="{{ featured.image_url if featured.image_url else 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=1200' }}" alt="Featured" onerror="this.style.display='none';">
                         <span class="label">Destacado: Colombia</span>
                         <h1>{{ featured.title }}</h1>
                         <p>{{ featured.ai_comment[:200] if featured.ai_comment else '' }}...</p>
-                    </a>
+                    </div>
                 {% else %}
                     <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200" alt="Default">
                     <span class="label">Radar Criollo</span>
@@ -192,11 +197,14 @@
                 <div class="latest-feed">
                     {% if global_news %}
                         {% for article in global_news[:4] %}
-                        <div class="mini-card">
+                        <div class="mini-card" style="cursor: pointer;" onclick="openModal(this)"
+                             data-title="{{ article.title | e }}"
+                             data-source="{{ article.source_name | e }}"
+                             data-img="{{ article.image_url if article.image_url else '' }}"
+                             data-comment="{{ article.ai_comment | e }}"
+                             data-link="{{ article.link }}">
                             <span class="meta">{{ article.source_name }}</span>
-                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
-                                <h4>{{ article.title }}</h4>
-                            </a>
+                            <h4>{{ article.title }}</h4>
                         </div>
                         {% endfor %}
                     {% else %}
@@ -232,27 +240,20 @@
                 <div class="day-body{% if not loop.first %} collapsed{% endif %}" id="col-body-{{ loop.index }}">
                     <div class="news-grid">
                         {% for article in day.articles %}
-                        <article class="article-card">
+                        <article class="article-card" onclick="openModal(this)"
+                                 data-title="{{ article.title | e }}"
+                                 data-source="{{ article.source_name | e }}"
+                                 data-img="{{ article.image_url if article.image_url else '' }}"
+                                 data-comment="{{ article.ai_comment | e }}"
+                                 data-link="{{ article.link }}">
+                            {% if article.image_url %}
                             <div class="article-img-wrapper">
-                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=600' }}" alt="News" loading="lazy">
+                                <img src="{{ article.image_url }}" onerror="this.parentElement.style.display='none';" alt="News" loading="lazy">
                             </div>
-                            <span class="article-source">{{ article.source_name }}</span>
-                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
-                                <h3>{{ article.title }}</h3>
-                            </a>
-                            <div class="ai-insight">
-                                <strong>Insight IA:</strong>
-                                <p>{{ article.ai_comment }}</p>
-                            </div>
-                            {% if article.reel_script %}
-                            <details class="reel-script">
-                                <summary><i class='bx bxl-tiktok'></i> Guion Vertical</summary>
-                                <div class="script-content">
-                                    {{ article.reel_script | replace('\n', '<br>') | safe }}
-                                </div>
-                            </details>
                             {% endif %}
-                            <a href="{{ article.link }}" target="_blank" class="read-more">Ver noticia completa <i class='bx bx-right-arrow-alt'></i></a>
+                            <span class="article-source">{{ article.source_name }}</span>
+                            <h3>{{ article.title }}</h3>
+                            <span class="read-more">Insight IA y Detalles <i class='bx bx-right-arrow-alt'></i></span>
                         </article>
                         {% endfor %}
                     </div>
@@ -283,15 +284,15 @@
                 <div class="region-content {% if loop.first %}active{% endif %}" id="dept-content-{{ loop.index }}">
                     <div class="news-grid">
                         {% for article in arts %}
-                        <article class="article-card" style="border-top: 3px solid #6366f1;">
+                        <article class="article-card" style="border-top: 3px solid #6366f1;" onclick="openModal(this)"
+                                 data-title="{{ article.title | e }}"
+                                 data-source="{{ article.source_name | e }}"
+                                 data-img="{{ article.image_url if article.image_url else '' }}"
+                                 data-comment="{{ article.ai_comment | e }}"
+                                 data-link="{{ article.link }}">
                             <span class="article-source">{{ article.source_name }}</span>
-                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
-                                <h3>{{ article.title }}</h3>
-                            </a>
-                            <div class="ai-insight">
-                                <p>{{ article.ai_comment[:180] }}...</p>
-                            </div>
-                            <a href="{{ article.link }}" target="_blank" class="read-more">Ver noticia <i class='bx bx-right-arrow-alt'></i></a>
+                            <h3>{{ article.title }}</h3>
+                            <span class="read-more">Insight IA y Detalles <i class='bx bx-right-arrow-alt'></i></span>
                         </article>
                         {% endfor %}
                     </div>
@@ -325,27 +326,20 @@
                 <div class="day-body{% if not loop.first %} collapsed{% endif %}" id="glb-body-{{ loop.index }}">
                     <div class="news-grid">
                         {% for article in day.articles %}
-                        <article class="article-card">
+                        <article class="article-card" onclick="openModal(this)"
+                                 data-title="{{ article.title | e }}"
+                                 data-source="{{ article.source_name | e }}"
+                                 data-img="{{ article.image_url if article.image_url else '' }}"
+                                 data-comment="{{ article.ai_comment | e }}"
+                                 data-link="{{ article.link }}">
+                            {% if article.image_url %}
                             <div class="article-img-wrapper">
-                                <img src="{{ article.image_url if article.image_url else 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=600' }}" alt="Global News" loading="lazy">
+                                <img src="{{ article.image_url }}" onerror="this.parentElement.style.display='none';" alt="Global News" loading="lazy">
                             </div>
-                            <span class="article-source">{{ article.source_name }}</span>
-                            <a href="{{ article.link }}" target="_blank" style="text-decoration: none;">
-                                <h3>{{ article.title }}</h3>
-                            </a>
-                            <div class="ai-insight">
-                                <strong>Insight IA:</strong>
-                                <p>{{ article.ai_comment }}</p>
-                            </div>
-                            {% if article.reel_script %}
-                            <details class="reel-script">
-                                <summary><i class='bx bxl-tiktok'></i> Guion Vertical</summary>
-                                <div class="script-content">
-                                    {{ article.reel_script | replace('\n', '<br>') | safe }}
-                                </div>
-                            </details>
                             {% endif %}
-                            <a href="{{ article.link }}" target="_blank" class="read-more">Ver noticia completa <i class='bx bx-right-arrow-alt'></i></a>
+                            <span class="article-source">{{ article.source_name }}</span>
+                            <h3>{{ article.title }}</h3>
+                            <span class="read-more">Insight IA y Detalles <i class='bx bx-right-arrow-alt'></i></span>
                         </article>
                         {% endfor %}
                     </div>
@@ -367,8 +361,39 @@
             </div>
             <p>Monitoreando el pulso de la innovación tecnológica. Impulsado por IA y curado por humanos.</p>
             <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.6;">&copy; 2026 Tech Criollo Intelligence Hub. Todos los derechos reservados.</p>
+            <a href="/admin" style="display: inline-block; margin-top: 16px; font-size: 0.7rem; opacity: 0.3; color: inherit; text-decoration: none; transition: opacity 0.3s;"
+               onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='0.3'">
+                ⚙️ Admin
+            </a>
         </div>
     </footer>
+
+    <!-- Modal Element -->
+    <div id="article-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Título</h2>
+                <button class="btn-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img id="modal-img" src="" alt="News Image" class="modal-img" onerror="this.style.display='none'">
+                <div class="modal-insight">
+                    <p id="modal-comment" style="margin-top: 8px;">Comentario</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span class="tag-source" id="modal-source">Fuente</span>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    {% if is_admin %}
+                    <button id="modal-resend" class="btn btn-secondary" style="font-size: 0.8rem; background: #10b981; color: white; border-color: #10b981;">
+                        <i class='bx bx-send'></i> REENVIAR
+                    </button>
+                    {% endif %}
+                    <a id="modal-link" href="#" target="_blank" class="btn btn-primary" style="font-size: 0.8rem;">LEER FUENTE ORIGINAL</a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Floating Notification -->
     <div id="toast" class="toast">
@@ -456,6 +481,79 @@
                 document.getElementById('dept-content-' + deptId).classList.add('active');
             });
         });
+
+        // ── Modal Logic ───────────────────────────────────────────────────
+        const modalOverlay = document.getElementById('article-modal');
+        let currentCardData = null;
+
+        function openModal(card) {
+            currentCardData = {
+                title: card.dataset.title,
+                source: card.dataset.source,
+                comment: card.dataset.comment,
+                link: card.dataset.link,
+                img: card.dataset.img
+            };
+
+            document.getElementById('modal-title').innerText = card.dataset.title;
+            document.getElementById('modal-source').innerText = card.dataset.source;
+            document.getElementById('modal-comment').innerText = card.dataset.comment;
+            document.getElementById('modal-link').href = card.dataset.link;
+            
+            const imgEl = document.getElementById('modal-img');
+            if (card.dataset.img) {
+                imgEl.src = card.dataset.img;
+                imgEl.style.display = 'block';
+            } else {
+                imgEl.style.display = 'none';
+            }
+            
+            modalOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Stop scrolling
+        }
+
+        function closeModal() {
+            modalOverlay.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) { closeModal(); }
+        });
+
+        // ── Resend Logic ───────────────────────────────────────────────────
+        const modalResend = document.getElementById('modal-resend');
+        if (modalResend) {
+            modalResend.addEventListener('click', async () => {
+                if (!currentCardData) return;
+                const origHtml = modalResend.innerHTML;
+                try {
+                    modalResend.disabled = true;
+                    modalResend.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i>...";
+                    showNotification("Reenviando noticia...");
+                    
+                    const res = await fetch('/api/resend-article', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: currentCardData.title,
+                            source_name: currentCardData.source,
+                            ai_comment: currentCardData.comment,
+                            link: currentCardData.link,
+                            image_url: currentCardData.img || ""
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    showNotification(res.ok ? "¡Noticia reenviada con éxito!" : "Error: " + data.message);
+                } catch (err) {
+                    showNotification("Error de conexión al reenviar.");
+                } finally {
+                    modalResend.disabled = false;
+                    modalResend.innerHTML = origHtml;
+                }
+            });
+        }
     </script>
 </body>
 </html>

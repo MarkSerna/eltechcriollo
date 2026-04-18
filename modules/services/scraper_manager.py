@@ -387,3 +387,30 @@ class ScraperManager:
         else:
             logger.warning(f"Tipo desconocido de fuente '{source.type}' para {source.name}")
             return []
+
+    async def capture_screenshot(self, url: str, article_id: str):
+        """Usa Playwright para tomar una captura limpia del sitio en caso de no tener imagen."""
+        from playwright.async_api import async_playwright
+        from pathlib import Path
+        
+        screenshots_dir = Path("static/screenshots")
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"{article_id}.png"
+        filepath = screenshots_dir / filename
+        
+        if filepath.exists():
+            return f"/static/screenshots/{filename}"
+            
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page(user_agent=self.headers["User-Agent"])
+                await page.set_viewport_size({"width": 1280, "height": 720})
+                await page.goto(url, wait_until="domcontentloaded", timeout=40000)
+                await page.wait_for_timeout(3000)
+                await page.screenshot(path=str(filepath))
+                await browser.close()
+                return f"/static/screenshots/{filename}"
+        except Exception as e:
+            logger.error(f"Error capturando screenshot de fallback para {url}: {e}")
+            return None

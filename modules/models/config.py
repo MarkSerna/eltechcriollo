@@ -18,6 +18,7 @@ class TelegramConfig:
 @dataclass
 class PathConfig:
     """Configuración de rutas del sistema."""
+    data_dir: Path = Path(os.getenv("DB_DIR", "data"))
     db_name: str = os.getenv("DB_NAME", "tech_history.db")
     database_url: str = os.getenv("DATABASE_URL", "") # Soporte para Supabase/PostgreSQL
     sources_path: Path = Path(os.getenv("SOURCES_PATH", "data/sources.json"))

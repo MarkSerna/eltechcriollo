@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, Text, String, DateTime, func
+from sqlalchemy.pool import NullPool
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, List, Set, Dict, Any
@@ -22,7 +23,12 @@ class DatabaseManager:
             logger.info("☁️ Usando base de datos externa (PostgreSQL/Supabase)")
 
         try:
-            self.engine = create_engine(self.db_url, pool_pre_ping=True)
+            # Si usamos el pooler de Supabase (puerto 6543), desactivamos el pooling local para evitar errores.
+            if ":6543" in self.db_url:
+                self.engine = create_engine(self.db_url, poolclass=NullPool)
+                logger.debug("🔗 Conexión configurada en modo Pooler (NullPool).")
+            else:
+                self.engine = create_engine(self.db_url, pool_pre_ping=True)
             self.metadata = MetaData()
         except Exception as e:
             logger.error(f"Error creando el motor de base de datos: {e}")

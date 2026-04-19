@@ -45,8 +45,18 @@ class AIManager:
                         max_output_tokens=max_tokens
                     )
                 )
+                
+                # Throttling: Esperar 12 segundos para cumplir con la cuota de 5 RPM (60s / 5)
+                # Esto es vital para evitar el error 429 en el despliegue gratuito.
+                import asyncio
+                await asyncio.sleep(12)
+                
                 return response.text.strip()
             except Exception as e:
+                if "429" in str(e):
+                    logger.warning("⏳ Cuota de Gemini excedida (Rate Limit). Esperando 60 segundos antes de reintentar...")
+                    import asyncio
+                    await asyncio.sleep(60)
                 logger.error(f"Error llamando a Gemini API: {e}. Reintentando con Ollama si es posible...")
                 # Si falla Gemini, intentamos fallback a Ollama si está vivo
 

@@ -141,5 +141,15 @@ class DatabaseManager:
                         "ai_comment", "reel_script", "image_url", "processed_at"]
                 return [dict(zip(keys, row)) for row in rows]
         except SQLAlchemyError as e:
+            if "articles" in str(e) and "does not exist" in str(e):
+                logger.warning("⚠️ Tabla 'articles' no encontrada. Intentando crearla ahora...")
+                self.initialize_schema()
+                # Reintentar una vez tras inicializar
+                try:
+                    with self.engine.connect() as conn:
+                        rows = conn.execute(query).fetchall()
+                        return [dict(zip(keys, row)) for row in rows]
+                except Exception:
+                    pass
             logger.error(f"Error obteniendo artículos de la DB: {e}")
             return []

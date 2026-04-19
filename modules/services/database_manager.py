@@ -36,7 +36,11 @@ class DatabaseManager:
 
     def initialize_schema(self) -> None:
         """Inicializa la base de datos y crea la tabla si no existe."""
-        if not self.engine: return
+        if not self.engine: 
+            logger.error("❌ No se puede inicializar el esquema: El motor de DB no está listo.")
+            return
+        
+        logger.info("🔍 Verificando esquema de base de datos...")
         
         query_create = """
         CREATE TABLE IF NOT EXISTS articles (
@@ -58,10 +62,10 @@ class DatabaseManager:
 
         try:
             with self.engine.begin() as conn:
+                logger.debug("🔨 Ejecutando Query de creación de tabla...")
                 conn.execute(text(query_create))
                 
                 # Gestión de columnas faltantes (migraciones simples)
-                # En Postgres es un poco más complejo detectar columnas via SQL puro, pero podemos intentar ALTER TABLE
                 for col_name in ['image_url', 'region', 'department']:
                     try:
                         conn.execute(text(f"ALTER TABLE articles ADD COLUMN {col_name} TEXT"))
@@ -70,9 +74,9 @@ class DatabaseManager:
                         # Probablemente ya existe
                         pass
                         
-            logger.debug("Esquema de base de datos verificado.")
+            logger.info("✅ Esquema de base de datos verificado y listo.")
         except SQLAlchemyError as e:
-            logger.error(f"Error inicializando el esquema: {e}")
+            logger.error(f"❌ Error crítico inicializando el esquema: {e}")
 
     def is_processed(self, url: str) -> bool:
         """Verifica si un enlace ha sido insertado previamente."""

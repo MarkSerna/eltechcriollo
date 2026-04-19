@@ -25,7 +25,7 @@ class AIManager:
         # Configurar Gemini si hay llave
         if self.gemini_key and GEMINI_AVAILABLE:
             genai.configure(api_key=self.gemini_key)
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            self.gemini_model = genai.GenerativeModel('gemini-3-flash-preview')
             logger.info("⚡ IA de Google Gemini configurada y lista (Modo Cloud).")
         else:
             self.gemini_model = None

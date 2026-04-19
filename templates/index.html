@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="/static/style.css?v=1.5">
     <!-- Boxicons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <!-- Oura-UI (Modern glassmorphic notifications) -->
+    <script src="https://unpkg.com/oura-ui@latest/dist/oura.umd.cjs"></script>
 
     <style>
         /* ── Archivo por Día ─────────────────────────────────────────────── */
@@ -395,10 +397,7 @@
         </div>
     </div>
 
-    <!-- Floating Notification -->
-    <div id="toast" class="toast">
-        <i class='bx bx-cog bx-spin'></i> <span id="toast-msg">Scraper Invocado...</span>
-    </div>
+    <!-- Oura.js handles notifications dynamically -->
 
     <script>
         // ── Fecha actual ─────────────────────────────────────────────────
@@ -418,14 +417,42 @@
             });
         });
 
-        // ── Toast helper ─────────────────────────────────────────────────
-        const toast    = document.getElementById('toast');
-        const toastMsg = document.getElementById('toast-msg');
+        // ── Oura-UI Initialization ──────────────────────────────────────
+        // Configuración estética y detección robusta para El Tech Criollo
+        
+        function showNotification(msg, type = 'info') {
+            // Intentar detectar si Oura está en window (posiblemente anidado en .default por UMD de Vite)
+            const OuraInstance = (typeof window !== 'undefined' && window.Oura && window.Oura.default) 
+                                 ? window.Oura.default : (typeof Oura !== 'undefined' ? Oura : null);
 
-        function showNotification(msg, duration = 3500) {
-            toastMsg.innerText = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+            if (!OuraInstance) {
+                console.warn("Oura-UI no cargado. Fallback a alert.");
+                alert(msg);
+                return;
+            }
+
+            const config = {
+                title: "Notificación",
+                text: msg,
+                timer: 4000,
+                closeButton: true
+            };
+
+            if (type === 'success') {
+                OuraInstance.success(config.title, config.text);
+            } else if (type === 'error') {
+                OuraInstance.error("Error", msg);
+            } else if (type === 'loading') {
+                OuraInstance.toast({
+                    title: "Procesando",
+                    text: msg,
+                    timer: 0,
+                    icon: 'info',
+                    type: 'progress'
+                });
+            } else {
+                OuraInstance.info(config.title, config.text);
+            }
         }
 
         // ── Botón Escanear ────────────────────────────────────────────────
@@ -436,12 +463,18 @@
                 try {
                     btnScrape.disabled = true;
                     btnScrape.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Analizando...";
-                    showNotification("Iniciando análisis autónomo...");
-                    await fetch('/api/scrape', { method: 'POST' });
-                    showNotification("Crawler trabajando. Recargando en unos segundos...");
-                    setTimeout(() => location.reload(), 5000);
+                    showNotification("Iniciando análisis autónomo...", "info");
+                    const res = await fetch('/api/scrape', { method: 'POST' });
+                    if (res.ok) {
+                        showNotification("Crawler trabajando en segundo plano. Recargando automáticamente...", "success");
+                        setTimeout(() => location.reload(), 5000);
+                    } else {
+                        showNotification("El servidor reportó un problema al iniciar el escaneo.", "error");
+                        btnScrape.disabled = false;
+                        btnScrape.innerHTML = orig;
+                    }
                 } catch {
-                    showNotification("Error de conexión con el servidor.");
+                    showNotification("Error de conexión con el servidor.", "error");
                     btnScrape.disabled = false;
                     btnScrape.innerHTML = orig;
                 }
@@ -458,9 +491,13 @@
                     btnTestTg.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i>...";
                     const res  = await fetch('/api/test-telegram', { method: 'POST' });
                     const data = await res.json();
-                    showNotification(res.ok ? "¡Éxito! Mensaje enviado." : "Error: " + data.message);
+                    if (res.ok) {
+                        showNotification("¡Éxito! Notificación de Telegram enviada.", "success");
+                    } else {
+                        showNotification("Error: " + data.message, "error");
+                    }
                 } catch {
-                    showNotification("Fallo al conectar con la API.");
+                    showNotification("Fallo al conectar con la API de notificaciones.", "error");
                 } finally {
                     btnTestTg.disabled = false;
                     btnTestTg.innerHTML = orig;
@@ -472,11 +509,9 @@
             tab.addEventListener('click', () => {
                 const deptId = tab.dataset.dept;
                 
-                // Desactivar todos
                 document.querySelectorAll('.region-tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.region-content').forEach(c => c.classList.remove('active'));
                 
-                // Activar actual
                 tab.classList.add('active');
                 document.getElementById('dept-content-' + deptId).classList.add('active');
             });
@@ -509,7 +544,7 @@
             }
             
             modalOverlay.classList.add('active');
-            document.body.style.overflow = 'hidden'; // Stop scrolling
+            document.body.style.overflow = 'hidden';
         }
 
         function closeModal() {
@@ -530,7 +565,6 @@
                 try {
                     modalResend.disabled = true;
                     modalResend.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i>...";
-                    showNotification("Reenviando noticia...");
                     
                     const res = await fetch('/api/resend-article', {
                         method: 'POST',
@@ -545,9 +579,13 @@
                     });
                     
                     const data = await res.json();
-                    showNotification(res.ok ? "¡Noticia reenviada con éxito!" : "Error: " + data.message);
+                    if (res.ok) {
+                        showNotification("¡Noticia reenviada con éxito!", "success");
+                    } else {
+                        showNotification("Error al reenviar: " + data.message, "error");
+                    }
                 } catch (err) {
-                    showNotification("Error de conexión al reenviar.");
+                    showNotification("Error de conexión al intentar reenviar la noticia.", "error");
                 } finally {
                     modalResend.disabled = false;
                     modalResend.innerHTML = origHtml;

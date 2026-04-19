@@ -375,22 +375,7 @@ footer {
 .btn-secondary { background: #f1f5f9; color: var(--primary); border: 1px solid var(--border); }
 .btn-secondary:hover { background: #e2e8f0; }
 
-.toast {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    background: var(--primary);
-    color: white;
-    padding: 1.25rem 2.5rem;
-    box-shadow: var(--shadow-md);
-    transform: translateY(200%);
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 10000;
-    font-weight: 700;
-    isolation: isolate;
-}
-
-.toast.show { transform: translateY(0); }
+/* Toast eliminado - Oura.js integrado */
 
 /* --- Modal --- */
 .modal-overlay {

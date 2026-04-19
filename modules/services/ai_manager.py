@@ -46,10 +46,10 @@ class AIManager:
                     )
                 )
                 
-                # Throttling: Esperar 12 segundos para cumplir con la cuota de 5 RPM (60s / 5)
-                # Esto es vital para evitar el error 429 en el despliegue gratuito.
+                # Throttling: Esperar 60 segundos (1 RPM) para asegurar que no chocamos con la cuota.
+                # El usuario prefiere máxima seguridad para evitar errores 429.
                 import asyncio
-                await asyncio.sleep(12)
+                await asyncio.sleep(60)
                 
                 return response.text.strip()
             except Exception as e:

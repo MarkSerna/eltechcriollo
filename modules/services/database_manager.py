@@ -1,150 +1,135 @@
-import sqlite3
-from typing import Optional
+from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, Text, String, DateTime, func
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
+from typing import Optional, List, Set, Dict, Any
 from modules.utils.logger import logger
 from modules.models.config import config
 
 class DatabaseManager:
-    """Clase para el manejo de la persistencia de los links extraídos."""
+    """Clase para el manejo de la persistencia usando SQLAlchemy (soporta SQLite y PostgreSQL)."""
     
     def __init__(self):
-        self.db_path = config.paths.db_path
-        
-    def _get_connection(self) -> Optional[sqlite3.Connection]:
-        """Obtiene una conexión limpia de SQLite."""
+        self.db_url = config.paths.database_url
+        if not self.db_url:
+            # Fallback a SQLite local
+            db_path = config.paths.db_path
+            self.db_url = f"sqlite:///{db_path}"
+            logger.info(f"💾 Usando base de datos local (SQLite): {db_path}")
+        else:
+            # Limpieza básica para URLs de Supabase/Postgres
+            if self.db_url.startswith("postgres://"):
+                self.db_url = self.db_url.replace("postgres://", "postgresql://", 1)
+            logger.info("☁️ Usando base de datos externa (PostgreSQL/Supabase)")
+
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.execute("PRAGMA journal_mode=WAL;")
-            return conn
-        except sqlite3.Error as e:
-            logger.error(f"Error conectando a SQLite en {self.db_path}: {e}")
-            return None
+            self.engine = create_engine(self.db_url, pool_pre_ping=True)
+            self.metadata = MetaData()
+        except Exception as e:
+            logger.error(f"Error creando el motor de base de datos: {e}")
+            self.engine = None
 
     def initialize_schema(self) -> None:
-        """Inicializa la base de datos y aplica migraciones automáticas si falta alguna columna."""
-        conn = self._get_connection()
-        if not conn:
-            return
-            
+        """Inicializa la base de datos y crea la tabla si no existe."""
+        if not self.engine: return
+        
+        query_create = """
+        CREATE TABLE IF NOT EXISTS articles (
+            id SERIAL PRIMARY KEY,
+            title TEXT,
+            url TEXT UNIQUE NOT NULL,
+            source TEXT,
+            region TEXT,
+            department TEXT,
+            ai_comment TEXT,
+            reel_script TEXT,
+            image_url TEXT,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+        # Ajuste para SQLite (SERIAL no existe)
+        if "sqlite" in self.db_url:
+            query_create = query_create.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
+
         try:
-            with conn:
-                # 1. Crear tabla base (si no existe)
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS articles (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        title TEXT,
-                        url TEXT UNIQUE NOT NULL,
-                        source TEXT,
-                        region TEXT,
-                        department TEXT,
-                        ai_comment TEXT,
-                        reel_script TEXT,
-                        image_url TEXT,
-                        processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
+            with self.engine.begin() as conn:
+                conn.execute(text(query_create))
                 
-                # 2. MIGRACIÓN: Verificar si falta la columna image_url (para DBs antiguas)
-                cursor = conn.cursor()
-                cursor.execute("PRAGMA table_info(articles)")
-                columns = [info[1] for info in cursor.fetchall()]
-                
-                if 'image_url' not in columns:
-                    logger.info("🛠 Migrando base de datos: Añadiendo columna 'image_url'...")
-                    conn.execute("ALTER TABLE articles ADD COLUMN image_url TEXT")
-
-                if 'region' not in columns:
-                    logger.info("🛠 Migrando base de datos: Añadiendo columna 'region'...")
-                    conn.execute("ALTER TABLE articles ADD COLUMN region TEXT DEFAULT 'global'")
-
-                if 'department' not in columns:
-                    logger.info("🛠 Migrando base de datos: Añadiendo columna 'department'...")
-                    conn.execute("ALTER TABLE articles ADD COLUMN department TEXT DEFAULT NULL")
-                    
-            logger.debug("Esquema de base de datos verificado e inicializado.")
-        except sqlite3.Error as e:
-            logger.error(f"Error inicializando o migrando el esquema: {e}")
-        finally:
-            conn.close()
+                # Gestión de columnas faltantes (migraciones simples)
+                # En Postgres es un poco más complejo detectar columnas via SQL puro, pero podemos intentar ALTER TABLE
+                for col_name in ['image_url', 'region', 'department']:
+                    try:
+                        conn.execute(text(f"ALTER TABLE articles ADD COLUMN {col_name} TEXT"))
+                        logger.info(f"🛠 Columna '{col_name}' añadida exitosamente.")
+                    except Exception:
+                        # Probablemente ya existe
+                        pass
+                        
+            logger.debug("Esquema de base de datos verificado.")
+        except SQLAlchemyError as e:
+            logger.error(f"Error inicializando el esquema: {e}")
 
     def is_processed(self, url: str) -> bool:
         """Verifica si un enlace ha sido insertado previamente."""
-        conn = self._get_connection()
-        if not conn:
-            return False
-            
+        if not self.engine: return False
         try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM articles WHERE url = ?", (url,))
-            return cursor.fetchone() is not None
-        except sqlite3.Error as e:
+            with self.engine.connect() as conn:
+                result = conn.execute(text("SELECT 1 FROM articles WHERE url = :url"), {"url": url})
+                return result.fetchone() is not None
+        except SQLAlchemyError as e:
             logger.error(f"Error verificando enlace {url}: {e}")
             return False
-        finally:
-            conn.close()
 
-    def get_processed_urls(self, urls: list[str]) -> set[str]:
-        """Acepta una lista de URLs y devuelve un set con las que YA están en la BD, en una sola consulta."""
-        if not urls:
-            return set()
-            
-        conn = self._get_connection()
-        if not conn:
-            return set()
-            
+    def get_processed_urls(self, urls: List[str]) -> Set[str]:
+        """Devuelve un set con las URLs que ya están en la BD."""
+        if not self.engine or not urls: return set()
         try:
-            placeholders = ','.join('?' for _ in urls)
-            query = f"SELECT url FROM articles WHERE url IN ({placeholders})"
-            cursor = conn.cursor()
-            cursor.execute(query, urls)
-            # Devuelve solo las que sí fueron encontradas
-            return {row[0] for row in cursor.fetchall()}
-        except sqlite3.Error as e:
+            with self.engine.connect() as conn:
+                query = text("SELECT url FROM articles WHERE url IN :urls")
+                # SQL Alchemy requiere una tupla para IN clausulas con bindparams
+                result = conn.execute(query, {"urls": tuple(urls)})
+                return {row[0] for row in result.fetchall()}
+        except SQLAlchemyError as e:
             logger.error(f"Error en consulta batch de enlaces: {e}")
             return set()
-        finally:
-            conn.close()
 
     def mark_as_processed(self, article) -> bool:
-        """Inserta un artículo enriquecido en la BD para evitar duplicados futuros."""
-        conn = self._get_connection()
-        if not conn:
-            return False
-            
+        """Inserta un artículo enriquecido en la BD."""
+        if not self.engine: return False
         try:
-            with conn:
-                conn.execute(
-                    "INSERT INTO articles (title, url, source, region, department, ai_comment, reel_script, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (article.title, article.link, article.source_name, article.region,
-                     article.department, article.ai_comment, article.reel_script, article.image_url)
-                )
+            with self.engine.begin() as conn:
+                query = text("""
+                    INSERT INTO articles (title, url, source, region, department, ai_comment, reel_script, image_url)
+                    VALUES (:title, :url, :source, :region, :department, :ai_comment, :reel_script, :image_url)
+                """)
+                conn.execute(query, {
+                    "title": article.title,
+                    "url": article.link,
+                    "source": article.source_name,
+                    "region": article.region,
+                    "department": article.department,
+                    "ai_comment": article.ai_comment,
+                    "reel_script": article.reel_script,
+                    "image_url": article.image_url
+                })
             return True
-        except sqlite3.IntegrityError:
-            # Ya existía el link
+        except SQLAlchemyError as e:
+            # Capturar errores de integridad (duplicados) discretamente
+            logger.debug(f"Artículo ya existía o error de integridad: {article.link}")
             return False
-        except sqlite3.Error as e:
-            logger.error(f"Error persistiendo artículo {article.link}: {e}")
-            return False
-        finally:
-            conn.close()
-            
-    def get_todays_articles(self) -> list:
-        """Retorna las noticias guardadas ordenadas cronológicamente."""
-        conn = self._get_connection()
-        if not conn:
-            return []
 
+    def get_todays_articles(self) -> List[Dict[str, Any]]:
+        """Retorna las noticias guardadas ordenadas cronológicamente."""
+        if not self.engine: return []
         try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT title, url, source, region, department, ai_comment, reel_script, image_url, processed_at "
-                "FROM articles ORDER BY processed_at DESC LIMIT 150"
-            )
-            rows = cursor.fetchall()
-            keys = ["title", "link", "source_name", "region", "department",
-                    "ai_comment", "reel_script", "image_url", "processed_at"]
-            return [dict(zip(keys, row)) for row in rows]
-        except sqlite3.Error as e:
+            with self.engine.connect() as conn:
+                query = text("""
+                    SELECT title, url, source, region, department, ai_comment, reel_script, image_url, processed_at 
+                    FROM articles ORDER BY processed_at DESC LIMIT 150
+                """)
+                rows = conn.execute(query).fetchall()
+                keys = ["title", "link", "source_name", "region", "department",
+                        "ai_comment", "reel_script", "image_url", "processed_at"]
+                return [dict(zip(keys, row)) for row in rows]
+        except SQLAlchemyError as e:
             logger.error(f"Error obteniendo artículos de la DB: {e}")
             return []
-        finally:
-            conn.close()

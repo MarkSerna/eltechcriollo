@@ -2,159 +2,144 @@ import httpx
 from modules.utils.logger import logger
 from modules.models.config import config
 from modules.models.source import ScrapedArticle
+from modules.services.database_manager import DatabaseManager
+from modules.services.search_manager import SearchManager
+
+# Soporte opcional para Google Gemini
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
 
 class AIManager:
-    """Clase para la conexión abstracta con Inteligencia Artificial vía Ollama HTTP API."""
+    """Clase para la conexión con IA, soportando Ollama (Local) y Gemini (Cloud)."""
 
     def __init__(self):
-        self.base_url = config.ai.ollama_url
-        self.model = config.ai.ollama_model
+        self.ollama_url = config.ai.ollama_url
+        self.ollama_model = config.ai.ollama_model
+        self.gemini_key = config.ai.gemini_api_key
+        self.db = DatabaseManager()
+        self.search_service = SearchManager()
         
-    async def ping(self) -> bool:
-        """Revisa si el servidor de ollama está disponible y vivo."""
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/api/tags", timeout=5.0)
-                return response.status_code == 200
-        except httpx.RequestError:
-            return False
+        # Configurar Gemini si hay llave
+        if self.gemini_key and GEMINI_AVAILABLE:
+            genai.configure(api_key=self.gemini_key)
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            logger.info("⚡ IA de Google Gemini configurada y lista (Modo Cloud).")
+        else:
+            self.gemini_model = None
 
-    async def generate_comment(self, article: ScrapedArticle) -> str:
-        """Emite una petición de inferencia a Ollama obteniendo una redacción periodística objetiva de la noticia tecnológica."""
-        if not await self.ping():
-            logger.warning(f"Ollama inalcanzable en {self.base_url}. Se omite inferencia.")
-            return "Ollama no está disponible. Requiere verificar host local."
+    async def _call_llm(self, prompt: str, temperature: float = 0.7, max_tokens: int = 2048) -> str:
+        """Helper para decidir entre Gemini y Ollama automáticamente."""
+        
+        # Opción 1: Gemini (Si hay llave)
+        if self.gemini_model:
+            try:
+                # El SDK de google-generativeai es síncrono por defecto en llamadas simples, 
+                # pero gemma4 es para el caso local. Gemini es mucho más rápido.
+                response = self.gemini_model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=temperature,
+                        max_output_tokens=max_tokens
+                    )
+                )
+                return response.text.strip()
+            except Exception as e:
+                logger.error(f"Error llamando a Gemini API: {e}. Reintentando con Ollama si es posible...")
+                # Si falla Gemini, intentamos fallback a Ollama si está vivo
 
-        prompt = f"""Escribe una noticia original y profesional sobre tecnología, como si fueras el periodista primario (redactor de "El Tech Criollo").
-        
-        REGLAS ESTRICTAS:
-        1. Escribe en tercera persona de forma clara, relatando los hechos periodísticos principales (qué, quién, cómo, por qué).
-        2. NO hables sobre la noticia, simplemente DA LA NOTICIA como contenido propio. Prohibido usar introducciones como "La noticia dice", o actuar como si fueras una IA analizándola.
-        3. Si la noticia trata sobre becas, convocatorias o educación (ej. SENA, MinTIC), DEBES extraer y listar mediante viñetas (-) los cursos, áreas de tecnología o habilidades específicas mencionadas.
-        4. AL FINAL DEL TEXTO DEBES CITAR OBLIGATORIAMENTE LA FUENTE ORIGINAL de forma natural. Por ejemplo: "Según el reporte publicado por X..." o "De acuerdo con la investigación de Y...".
-        5. DEBES insertar OBLIGATORIAMENTE el siguiente enlace exacto en la mención a la fuente: {article.link}
-        
-        Noticia Base (Título): {article.title}
-        Extracto Original: {article.summary[:500]}
-        
-        Devuelve SOLO la noticia redactada final, estructurada en un par de párrafos, con su esquema de citación y link integrado. Salida:"""
-
+        # Opción 2: Ollama (Fallback o por defecto)
         payload = {
-            "model": self.model,
+            "model": self.ollama_model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.8,
-                "num_ctx": 2048
-            }
-        }
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=120.0)
-                response.raise_for_status()
-                data = response.json()
-                return data.get("response", "").strip()
-        except httpx.RequestError as e:
-            logger.error(f"Falla HTTP interactuando con Ollama: {e}")
-            return "Error contactando a la Inteligencia Artificial Local."
-        except Exception as e:
-            logger.error(f"Error inesperado en inferencia LLM: {e}")
-            return "Error interno en Generación IA."
-
-    async def generate_reel_script(self, article: ScrapedArticle) -> str:
-        """Emite una petición secundaria para crear un guion explosivo de formato vertical."""
-        if not await self.ping():
-            return "Ollama inaccesible."
-
-        prompt = f"""Actúa como un creador de contenido viral. Escribe un guion corto (máximo 45 segundos) para un Reel/TikTok basado en esta noticia tecnológica. 
-        DEBE tener:
-        1. Un HOOK (gancho) explosivo en los primeros 3 segundos.
-        2. Desarrollo ultra-rápido de la noticia.
-        3. Call to Action (CTA) polémico o que invite a comentar.
-        
-        Noticia Título: {article.title}
-        Extracto/Contexto: {article.summary[:300]}
-        
-        Devuelve de forma limpia SOLO el texto del guion, sin anotaciones o introducciones tuyas."""
-
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.9,
-                "num_ctx": 2048
-            }
-        }
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=120.0)
-                response.raise_for_status()
-                data = response.json()
-                return data.get("response", "").strip()
-        except Exception as e:
-            logger.error(f"Error generando guion: {e}")
-            return "Fallo generando guion viral."
-
-    async def is_tech_news(self, article: ScrapedArticle) -> bool | None:
-        """Determinas con IA si la noticia es puramente tecnológica o de digitalización gubernamental/general."""
-        if not await self.ping():
-            return None # Fallback a validación de palabras clave si Ollama no está disponible
-
-        prompt = f"""Responde únicamente con SI o NO.
-¿Es el siguiente artículo estrictamente sobre tecnología emergente, innovación tecnológica, ciberseguridad, startups tecnológicas, inteligencia artificial o desarrollo de software? Si es sobre trámites de gobierno, política, subsidios, nombramientos (incluso si son en ministerios de TIC) o noticias generales, debes responder NO.
-
-Título: {article.title}
-Extracto: {article.summary[:500]}
-
-Tu respuesta (SI o NO):"""
-
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "num_ctx": 1024
-            }
-        }
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=60.0)
-                response.raise_for_status()
-                data = response.json()
-                answer = data.get("response", "").strip().upper()
-                return answer.startswith("SI")
-        except Exception as e:
-            logger.error(f"Error comprobando validez de tech en IA: {e}")
-            return None
-
-    async def chat(self, user_message: str) -> str:
-        """Permite interactuar de manera conversacional libre con el modelo Ollama."""
-        if not await self.ping():
-            return "Lo siento, mi servidor cerebral (Ollama) está apagado o fuera de línea."
-
-        prompt = user_message
-
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.7,
+                "temperature": temperature,
                 "num_ctx": 4096
             }
         }
         
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.post(f"{self.base_url}/api/generate", json=payload, timeout=120.0)
+                response = await client.post(f"{self.ollama_url}/api/generate", json=payload, timeout=180.0)
                 response.raise_for_status()
                 data = response.json()
                 return data.get("response", "").strip()
         except Exception as e:
-            logger.error(f"Error en chat libre con IA: {e}")
-            return "Se me fundieron los cables intentando procesar esa petición."
+            logger.error(f"Falla total de IA (Ollama/Gemini): {e}")
+            return "Lo siento, todos mis motores de pensamiento están fuera de línea."
+
+    async def ping(self) -> bool:
+        """Revisa si al menos un motor de IA responde."""
+        if self.gemini_model: return True
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.ollama_url}/api/tags", timeout=5.0)
+                return response.status_code == 200
+        except Exception:
+            return False
+
+    async def generate_comment(self, article: ScrapedArticle) -> str:
+        """Redacta la noticia de forma profesional."""
+        prompt = f"""Escribe una noticia original y profesional sobre tecnología, como si fueras el periodista primario (redactor de "El Tech Criollo").
+        
+        REGLAS ESTRICTAS:
+        1. Escribe en tercera persona de forma clara.
+        2. NO actúes como IA, simplemente DA LA NOTICIA.
+        3. CITA LA FUENTE OBLIGATORIAMENTE con este enlace exacto: {article.link}
+        
+        Noticia Base (Título): {article.title}
+        Extracto Original: {article.summary[:500]}
+        
+        Devuelve SOLO la noticia redactada final."""
+        
+        return await self._call_llm(prompt, temperature=0.8)
+
+    async def generate_reel_script(self, article: ScrapedArticle) -> str:
+        """Crea un guion corto para TikTok/Reels."""
+        prompt = f"""Escribe un guion explosivo (máximo 45 seg) para un Reel basado en:
+        Título: {article.title}
+        Contexto: {article.summary[:300]}
+        Salida limpia sin anotaciones."""
+        
+        return await self._call_llm(prompt, temperature=0.9)
+
+    async def is_tech_news(self, article: ScrapedArticle) -> bool | None:
+        """Filtro de calidad tech."""
+        prompt = f"""Responde únicamente con SI o NO.
+¿Es el siguiente artículo estrictamente sobre tecnología emergente, innovación o desarrollo?
+Título: {article.title}
+Extracto: {article.summary[:500]}
+Respuesta:"""
+        
+        ans = await self._call_llm(prompt, temperature=0.1, max_tokens=10)
+        return "SI" in ans.upper()
+
+    async def chat(self, user_message: str) -> str:
+        """Chat conversacional con búsqueda e investigación."""
+        
+        # 1. Definición del Sistema
+        system_context = "Eres el asistente inteligente de 'El Tech Criollo'. Tono profesional y experto en tecnología colombiana."
+        
+        # 2. Investigación (RAG / Internet)
+        research_context = ""
+        trigger_keywords = ["noticia", "que paso", "últimas", "actualidad", "analiza", "investiga", "manizales"]
+        
+        if any(w in user_message.lower() for w in trigger_keywords):
+            local_news = self.db.get_todays_articles()
+            if local_news:
+                research_context += "\n--- NOTICIAS LOCALES RECIENTES ---\n"
+                for n in local_news[:5]:
+                    research_context += f"- {n['title']}: {n['ai_comment'][:200]}...\n"
+            
+            search_results = await self.search_service.search(user_message, max_results=4)
+            research_context += f"\n--- INVESTIGACIÓN EN INTERNET ---\n{search_results}\n"
+
+        prompt = f"""<SYSTEM>{system_context}</SYSTEM>
+<CONTEXT>{research_context}</CONTEXT>
+<USER>{user_message}</USER>
+<ASSISTANT>"""
+
+        return await self._call_llm(prompt)

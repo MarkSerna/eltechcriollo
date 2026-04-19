@@ -67,6 +67,11 @@ class TelegramBotListener:
         send_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         try:
             async with httpx.AsyncClient() as c:
-                await c.post(send_url, json={"chat_id": chat_id, "text": reply, "parse_mode": "Markdown"})
+                response = await c.post(send_url, json={"chat_id": chat_id, "text": reply, "parse_mode": "Markdown"})
+                
+                # Si falla por error de parsing (común en Markdown/MarkdownV2 si hay caracteres raros)
+                if response.status_code != 200:
+                    logger.warning(f"Falla enviando Markdown, reintentando en texto plano. Error: {response.text}")
+                    await c.post(send_url, json={"chat_id": chat_id, "text": reply})
         except Exception as e:
             logger.error(f"Telegram Handler: Error enviando la respuesta de la IA: {e}")

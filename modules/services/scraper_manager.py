@@ -178,7 +178,7 @@ class ScraperManager:
         category_id = extra.get("category_id", "")
         per_page = extra.get("per_page", 15)
 
-        params = f"per_page={per_page}&_fields=title,link,date,excerpt,jetpack_featured_media_url"
+        params = f"per_page={per_page}&_fields=title,link,date,excerpt,jetpack_featured_media_url,yoast_head_json"
         if category_id:
             params += f"&categories={category_id}"
 
@@ -203,6 +203,13 @@ class ScraperManager:
                 summary = _BS(excerpt, "html.parser").get_text(strip=True)
 
                 image_url = post.get("jetpack_featured_media_url") or None
+                
+                # Fallback a Yoast SEO (muy común en Forbes y otros medios WP)
+                if not image_url and "yoast_head_json" in post:
+                    yoast = post["yoast_head_json"]
+                    og_image = yoast.get("og_image")
+                    if og_image and isinstance(og_image, list) and len(og_image) > 0:
+                        image_url = og_image[0].get("url")
 
                 if title and link:
                     results.append(ScrapedArticle(
@@ -406,8 +413,18 @@ class ScraperManager:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page(user_agent=self.headers["User-Agent"])
                 await page.set_viewport_size({"width": 1280, "height": 720})
-                await page.goto(url, wait_until="domcontentloaded", timeout=40000)
-                await page.wait_for_timeout(3000)
+                
+                logger.info(f"📸 Navegando asíncronamente para captura: {url}")
+                # Esperar a 'load' y luego un tiempo extra para que carguen elementos pesados
+                await page.goto(url, wait_until="load", timeout=60000)
+                
+                # Intentar esperar a que el contenido principal sea visible (evita capturar la home si hay redirect lento)
+                try:
+                    await page.wait_for_selector("article, main, .content, #content, .post", timeout=10000)
+                except:
+                    logger.warning(f"⚠️ No se encontró selector de contenido principal en {url}, procediendo con captura general.")
+
+                await page.wait_for_timeout(5000)
                 await page.screenshot(path=str(filepath))
                 await browser.close()
                 return f"/static/screenshots/{filename}"

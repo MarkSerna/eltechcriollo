@@ -149,7 +149,19 @@ class ScraperManager:
         from playwright.async_api import async_playwright
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                # Lanzamiento con optimización de memoria para Render (512MB RAM)
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-gpu',
+                        '--no-zygote',
+                        '--single-process',
+                        '--disable-extensions'
+                    ]
+                )
                 context = await browser.new_context(user_agent=self.headers["User-Agent"])
                 page = await context.new_page()
                 
@@ -277,7 +289,10 @@ class ScraperManager:
         try:
             from playwright.async_api import async_playwright
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--no-zygote', '--single-process']
+                )
                 page = await browser.new_page(user_agent=self.headers["User-Agent"])
                 await page.goto(source.url, wait_until="networkidle", timeout=60000)
                 await page.wait_for_timeout(2000)
@@ -328,7 +343,10 @@ class ScraperManager:
         try:
             from playwright.async_api import async_playwright
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--no-zygote', '--single-process']
+                )
                 page = await browser.new_page(user_agent=self.headers["User-Agent"])
                 try:
                     await page.goto(source.url, wait_until="domcontentloaded", timeout=45000)
@@ -410,7 +428,10 @@ class ScraperManager:
             
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=['--disable-dev-shm-usage', '--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--no-zygote', '--single-process']
+                )
                 page = await browser.new_page(user_agent=self.headers["User-Agent"])
                 await page.set_viewport_size({"width": 1280, "height": 720})
                 

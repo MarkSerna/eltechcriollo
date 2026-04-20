@@ -121,13 +121,14 @@ async def main_orchestrator():
                 logger.info(f"🤖 Invocando Inteligencia Artificial OLLAMA para: {article.title[:20]}...")
                 
                 async with ai_semaphore:
-                    # Invocamos en paralelo la petición del comentario y la del reel a Ollama
+                    # Invocamos en paralelo la petición del comentario y la del reel a Ollama/Gemini
                     comment, reel = await asyncio.gather(
                         ai_manager.generate_comment(article),
                         ai_manager.generate_reel_script(article)
                     )
-                    article.ai_comment = comment
-                    article.reel_script = reel
+                    # Fallbacks si la IA falla (cuota excedida o caída)
+                    article.ai_comment = comment or "Análisis en progreso: El robot está procesando los detalles técnicos de esta noticia de alto impacto."
+                    article.reel_script = reel or "Guión no disponible momentáneamente por alta demanda de procesamiento."
 
                 # Si no hay imagen disponible, capturar un screenshot de fallback
                 if not article.image_url:

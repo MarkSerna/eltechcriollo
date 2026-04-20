@@ -10,6 +10,19 @@ class NotificationManager:
     
     def __init__(self):
         self.discord_webhook = config.discord.webhook_url
+        # Normalización de chat_id: Telegram funciona mejor con IDs numéricos directos o strings sin espacios
+        raw_chat_id = config.telegram.chat_id
+        try:
+            self.chat_id = int(str(raw_chat_id).strip())
+        except (ValueError, TypeError):
+            self.chat_id = str(raw_chat_id).strip()
+            
+    def _safe_escape(self, text) -> str:
+        """Escapa texto para HTML de Telegram evitando errores con valores None."""
+        if text is None:
+            return ""
+        import html
+        return html.escape(str(text))
         
     async def send_discord_file(self, filepath: Path) -> bool:
         """Toma un archivo local y lo empuja a Discord usando Multi-part."""
@@ -128,10 +141,13 @@ class NotificationManager:
             
         try:
             # Sanitización para modo HTML de Telegram
-            import html
-            safe_title = html.escape(article.title)
-            safe_comment = html.escape(article.ai_comment)
-            safe_source = html.escape(article.source_name)
+            safe_title = self._safe_escape(article.title)
+            safe_comment = self._safe_escape(article.ai_comment)
+            safe_source = self._safe_escape(article.source_name)
+            
+            # Si el comentario está vacío (falló la IA), usar un fallback digno
+            if not safe_comment:
+                safe_comment = "<i>La IA está analizando los detalles de esta noticia. Mientras tanto, puedes leer el original abajo.</i>"
             
             # Construir el pie de página usando HTML
             caption = (
@@ -150,7 +166,7 @@ class NotificationManager:
                 if article.image_url:
                     photo_url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
                     photo_data = {
-                        'chat_id': chat_id,
+                        'chat_id': self.chat_id,
                         'caption': caption,
                         'parse_mode': 'HTML',
                         'photo': article.image_url
@@ -170,7 +186,7 @@ class NotificationManager:
                 if not sent:
                     msg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
                     msg_data = {
-                        'chat_id': chat_id,
+                        'chat_id': self.chat_id,
                         'text': caption,
                         'parse_mode': 'HTML'
                     }

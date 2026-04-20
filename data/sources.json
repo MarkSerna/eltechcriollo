@@ -108,5 +108,26 @@
         "url": "https://www.xataka.com/feedburner.xml",
         "type": "rss",
         "region": "global"
+    },
+    {
+        "name": "Universidad de Caldas",
+        "url": "https://www.ucaldas.edu.co/portal/category/actualidad/feed/",
+        "type": "rss",
+        "region": "colombia",
+        "require_ai": true
+    },
+    {
+        "name": "Univ. Tecnológica de Pereira (UTP)",
+        "url": "https://blog.utp.edu.co/feed/",
+        "type": "rss",
+        "region": "colombia",
+        "require_ai": true
+    },
+    {
+        "name": "Observatorio Univ. Colombiana",
+        "url": "https://universidad.edu.co/feed/",
+        "type": "rss",
+        "region": "colombia",
+        "require_ai": true
     }
 ]

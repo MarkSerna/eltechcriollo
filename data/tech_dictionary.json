@@ -21,7 +21,8 @@
     "cómputo de alto rendimiento", "supercomputadora",
     "open source", "software libre",
     "ciberseguridad", "seguridad informática", "seguridad de la información",
-    "transformación digital", "digitalización empresarial"
+    "transformación digital", "digitalización empresarial",
+    "Facultad de Inteligencia Artificial", "Facultad de IA"
   ],
 
   "TECH_ENTITIES": [
@@ -43,7 +44,14 @@
     "Mercado Libre", "PayPal", "Stripe",
     "Zoom", "Cisco", "VMware", "Cloudflare",
     "Hugging Face", "Stability AI", "Midjourney",
-    "Red Hat", "Ubuntu", "Linux"
+    "Red Hat", "Ubuntu", "Linux",
+    "Universidad de Caldas", "U. de Caldas", "UCaldas",
+    "Universidad Tecnológica de Pereira", "UTP",
+    "Universidad del Quindío", "Uniquindío", "Uniquindio",
+    "Universidad de Manizales", "U. de Manizales",
+    "Universidad Autónoma de Manizales", "UAM",
+    "Universidad Nacional Manizales", "UNAL Manizales",
+    "Universidad Católica de Manizales"
   ],
 
   "TECH_SUPPORTING": [
@@ -75,7 +83,8 @@
     "educación digital", "aprendizaje en línea", "MOOC", "LMS",
     "impresión 3D", "manufactura aditiva",
     "satélite", "comunicación satelital",
-    "criptografía", "firma digital", "certificado digital"
+    "criptografía", "firma digital", "certificado digital",
+    "Manizales"
   ],
 
   "TECH_NEGATIVE": [

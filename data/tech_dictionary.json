@@ -51,7 +51,15 @@
     "Universidad de Manizales", "U. de Manizales",
     "Universidad Autónoma de Manizales", "UAM",
     "Universidad Nacional Manizales", "UNAL Manizales",
-    "Universidad Católica de Manizales"
+    "Universidad Católica de Manizales",
+    "Alcaldía de Manizales", "Alcaldia de Manizales",
+    "Secretaría de TIC y Competitividad de Manizales", "Secretaría TIC Manizales",
+    "Secretaría de TIC de Manizales", "Laboratorio de Innovación de Manizales",
+    "Alcaldía de Pereira", "Alcaldia de Pereira",
+    "Secretaría de TIC de Pereira", "Secretaría TIC Pereira",
+    "Alcaldía de Armenia", "Alcaldia de Armenia",
+    "Secretaría de TIC de Armenia", "Secretaría TIC Armenia",
+    "Ministerio TIC", "MinTIC", "Secretaría de TIC", "Secretaría TIC"
   ],
 
   "TECH_SUPPORTING": [
@@ -90,7 +98,6 @@
   "TECH_NEGATIVE": [
     "cosecha", "siembra", "agropecuario", "ganadería", "cultivo", "finca", "parcela",
     "partido político", "elecciones", "candidato", "senado", "cámara de representantes",
-    "alcalde", "gobernador", "concejo municipal",
     "fútbol", "deporte", "torneo", "liga", "atleta", "medallista",
     "carnaval", "festival", "feria", "concierto", "espectáculo",
     "homicidio", "crimen", "robo", "secuestro", "captura", "detenido",

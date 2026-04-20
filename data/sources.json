@@ -129,5 +129,19 @@
         "type": "rss",
         "region": "colombia",
         "require_ai": true
+    },
+    {
+        "name": "El Diario (Pereira - Local)",
+        "url": "https://www.eldiario.com.co/seccion/pereira/feed/",
+        "type": "rss",
+        "region": "colombia",
+        "require_ai": true
+    },
+    {
+        "name": "La Crónica (Quindío - Local)",
+        "url": "https://www.cronicadelquindio.com/rss/all.xml",
+        "type": "rss",
+        "region": "colombia",
+        "require_ai": true
     }
 ]

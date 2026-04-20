@@ -1,7 +1,9 @@
-from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Form, Depends, HTTPException, Request, BackgroundTasks
+from starlette.middleware.sessions import SessionMiddleware
+import os
 
 import sys
 from pathlib import Path
@@ -16,9 +18,22 @@ load_dotenv()
 from modules.core.app import main_orchestrator
 from modules.services.database_manager import DatabaseManager
 from modules.utils.logger import logger
+from modules.services.notification_manager import NotificationManager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 app = FastAPI(title="El Tech Criollo - Intelligence Hub")
+
+# Configuración de Seguridad (Sesiones)
+SECRET_KEY = os.getenv("SECRET_KEY", "flash_default_secret_999")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+def is_authenticated(request: Request):
+    """Verifica si la sesión del usuario es válida."""
+    if not request.session.get("authenticated"):
+        raise HTTPException(status_code=401, detail="No autorizado")
+    return True
 
 from modules.services.telegram_listener import TelegramBotListener
 import asyncio
@@ -136,16 +151,36 @@ async def home(request: Request):
     """Renderiza el tablero interactivo de lectura (Público)."""
     return await render_dashboard(request, is_admin=False)
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Página de inicio de sesión."""
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/login")
+async def login(request: Request, password: str = Form(...)):
+    """Procesa el inicio de sesión."""
+    if password == ADMIN_PASSWORD:
+        request.session["authenticated"] = True
+        logger.info("🔐 Administración: Sesión iniciada con éxito.")
+        return RedirectResponse(url="/admin", status_code=303)
+    else:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Contraseña incorrecta"})
+
+@app.get("/logout")
+async def logout(request: Request):
+    """Cierra la sesión administrativa."""
+    request.session.clear()
+    return RedirectResponse(url="/")
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_home(request: Request):
     """Renderiza el tablero interactivo de lectura (Admin)."""
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login")
     return await render_dashboard(request, is_admin=True)
 
-
-from modules.services.notification_manager import NotificationManager
-
 @app.post("/api/test-telegram")
-async def test_telegram():
+async def test_telegram(authenticated: bool = Depends(is_authenticated)):
     """Envía un mini-reporte de prueba para verificar que el Bot funciona."""
     nm = NotificationManager()
     
@@ -157,14 +192,13 @@ async def test_telegram():
         return JSONResponse(status_code=500, content={"status": "error", "message": "Falla al enviar. Revisa logs y credenciales."})
 
 @app.post("/api/scrape")
-async def trigger_scrape(background_tasks: BackgroundTasks):
+async def trigger_scrape(background_tasks: BackgroundTasks, authenticated: bool = Depends(is_authenticated)):
     """Endpoint para forzar que el robot extraiga y Ollama analice asíncronamente."""
     logger.info("🚀 Petición de Scraping forzada vía API Web (Asíncrona).")
     
     background_tasks.add_task(main_orchestrator)
     
     return JSONResponse(content={"status": "working", "message": "Scraping e Inferencia IA ha comenzado en fondo de forma asíncrona. Recarga la página en unos segundos."})
-# reload
 
 from pydantic import BaseModel
 
@@ -176,7 +210,7 @@ class ArticleResendRequest(BaseModel):
     image_url: str = ""
 
 @app.post("/api/resend-article")
-async def resend_article(request: ArticleResendRequest):
+async def resend_article(request: ArticleResendRequest, authenticated: bool = Depends(is_authenticated)):
     """Endpoint para reenviar una noticia manualmente a Telegram desde el Dashboard."""
     logger.info(f"Reenviando artículo a Telegram: {request.title}")
     

@@ -13,16 +13,19 @@ class ScraperManager:
     
     def __init__(self):
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-            "Accept-Language": "es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Sec-Ch-Ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Platform": "\"Windows\"",
+            "Accept-Language": "es-419,es;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
             "Sec-Fetch-Dest": "document",
             "Sec-Fetch-Mode": "navigate",
             "Sec-Fetch-Site": "cross-site",
-            "Upgrade-Insecure-Requests": "1"
+            "Sec-Fetch-User": "?1",
+            "Cache-Control": "max-age=0",
+            "Referer": "https://www.google.com/"
         }
         self.timeout = float(config.scraper.timeout)
 
@@ -198,9 +201,27 @@ class ScraperManager:
         results = []
         try:
             async with httpx.AsyncClient(follow_redirects=True) as client:
-                response = await client.get(url, headers=self.headers, timeout=self.timeout)
+                # Quitamos compresión manual para evitar errores de streaming vacíos
+                api_headers = self.headers.copy()
+                if "Accept-Encoding" in api_headers:
+                    del api_headers["Accept-Encoding"]
+                
+                response = await client.get(url, headers=api_headers, timeout=self.timeout)
                 response.raise_for_status()
-                posts = response.json()
+                
+                logger.debug(f"[{source.name}] WP API respondio Status: {response.status_code}, Length: {len(response.content)}")
+                
+                # Manejo robusto de encoding para evitar UnicodeDecodeError
+                import json
+                try:
+                    if not response.content:
+                        logger.warning(f"[{source.name}] Respuesta de API vacía (0 bytes).")
+                        return []
+                    posts = response.json()
+                except Exception:
+                    logger.debug(f"[{source.name}] Falló decode UTF-8 estándar, reintentando con 'replace'...")
+                    content = response.content.decode('utf-8', errors='replace')
+                    posts = json.loads(content)
                 
             logger.debug(f"[{source.name}] WP API retornó {len(posts)} posts.")
             for post in posts:

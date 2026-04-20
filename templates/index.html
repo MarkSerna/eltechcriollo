@@ -15,122 +15,6 @@
     <!-- Oura-UI (Modern glassmorphic notifications) -->
     <script src="https://unpkg.com/oura-ui@latest/dist/oura.umd.cjs"></script>
 
-    <style>
-        /* ── Archivo por Día ─────────────────────────────────────────────── */
-        .day-group {
-            margin-bottom: 48px;
-        }
-
-        .day-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 24px;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .day-label {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--accent, #2563eb);
-            background: rgba(37, 99, 235, 0.08);
-            border: 1px solid rgba(37, 99, 235, 0.2);
-            border-radius: 20px;
-            padding: 4px 14px;
-            white-space: nowrap;
-        }
-
-        .day-sep {
-            flex-grow: 1;
-            height: 1px;
-            background: linear-gradient(to right, rgba(37, 99, 235, 0.18), transparent);
-        }
-
-        .day-toggle {
-            font-size: 1.2rem;
-            color: #999;
-            transition: transform 0.25s ease;
-            line-height: 1;
-        }
-
-        .day-header.collapsed .day-toggle {
-            transform: rotate(-90deg);
-        }
-
-        .day-body {
-            overflow: hidden;
-            transition: max-height 0.35s ease, opacity 0.25s ease;
-            max-height: 9999px;
-            opacity: 1;
-        }
-
-        .day-body.collapsed {
-            max-height: 0;
-            opacity: 0;
-        }
-
-        /* Badge contador */
-        .day-count {
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: #888;
-            background: #f3f4f6;
-            border-radius: 12px;
-            padding: 2px 9px;
-        }
-
-        /* ── Separador de sección   ───────────────────────────────────────── */
-        .section-title {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin: 48px 0 32px;
-        }
-        .section-title h2 {
-            white-space: nowrap;
-            margin: 0;
-        }
-        .section-title hr {
-            flex-grow: 1;
-            border: none;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        /* ── Sección Regiones ──────────────────────────────────────────────── */
-        .regions-tabs {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 12px;
-            margin-bottom: 24px;
-            scrollbar-width: thin;
-        }
-        .region-tab {
-            padding: 8px 18px;
-            background: #f3f4f6;
-            border: 1px solid #e5e7eb;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s;
-            color: #4b5563;
-        }
-        .region-tab.active {
-            background: var(--accent, #2563eb);
-            color: white;
-            border-color: var(--accent, #2563eb);
-        }
-        .region-content {
-            display: none;
-        }
-        .region-content.active {
-            display: block;
-        }
     </style>
 </head>
 <body>
@@ -157,14 +41,25 @@
                     <a href="#global">Global</a>
                     <a href="#ia">IA &amp; Futuro</a>
                 </nav>
+                {% if is_admin %}
                 <div class="action-buttons" style="display: flex; gap: 10px;">
-                    <button id="btn-test-tg" class="btn btn-secondary">
-                        <i class='bx bxl-telegram'></i> Telegram
+                    <button id="btn-test-tg" class="btn btn-secondary" title="Probar conexión con Telegram">
+                        <i class='bx bxl-telegram'></i>
                     </button>
                     <button id="btn-scrape" class="btn btn-primary">
                         <i class='bx bx-refresh'></i> Escanear
                     </button>
+                    <a href="/logout" class="btn btn-secondary" title="Cerrar Sesión">
+                        <i class='bx bx-log-out'></i>
+                    </a>
                 </div>
+                {% else %}
+                <div class="action-buttons">
+                    <a href="/login" class="btn btn-secondary" style="font-size: 0.7rem;">
+                        <i class='bx bxs-lock-alt'></i> Admin
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </header>
@@ -363,10 +258,6 @@
             </div>
             <p>Monitoreando el pulso de la innovación tecnológica. Impulsado por IA y curado por humanos.</p>
             <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.6;">&copy; 2026 Tech Criollo Intelligence Hub. Todos los derechos reservados.</p>
-            <a href="/admin" style="display: inline-block; margin-top: 16px; font-size: 0.7rem; opacity: 0.3; color: inherit; text-decoration: none; transition: opacity 0.3s;"
-               onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='0.3'">
-                ⚙️ Admin
-            </a>
         </div>
     </footer>
 
@@ -388,7 +279,7 @@
                 <div style="display: flex; gap: 10px; align-items: center;">
                     {% if is_admin %}
                     <button id="modal-resend" class="btn btn-secondary" style="font-size: 0.8rem; background: #10b981; color: white; border-color: #10b981;">
-                        <i class='bx bx-send'></i> REENVIAR
+                        <i class='bx bx-send'></i>
                     </button>
                     {% endif %}
                     <a id="modal-link" href="#" target="_blank" class="btn btn-primary" style="font-size: 0.8rem;">LEER FUENTE ORIGINAL</a>

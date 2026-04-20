@@ -21,6 +21,7 @@ class PathConfig:
     data_dir: Path = Path(os.getenv("DB_DIR", "data"))
     db_name: str = os.getenv("DB_NAME", "tech_history.db")
     database_url: str = os.getenv("DATABASE_URL", "") # Soporte para Supabase/PostgreSQL
+    db_fallback: bool = os.getenv("DB_FALLBACK", "true").lower() == "true"
     sources_path: Path = Path(os.getenv("SOURCES_PATH", "data/sources.json"))
     reports_dir: Path = Path(os.getenv("REPORTS_DIR", "reports"))
     logs_dir: Path = Path(os.getenv("LOGS_DIR", "logs"))
@@ -83,10 +84,12 @@ class ScraperConfig:
 
 @dataclass
 class AIConfig:
-    """Configuración para Ollama Local."""
+    """Configuración para IA (Ollama/Gemini)."""
     ollama_url: str = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    ai_provider: str = os.getenv("AI_PROVIDER", "gemini") # 'local' o 'gemini'
+    gemini_cooldown: int = int(os.getenv("GEMINI_COOLDOWN", "60"))
 
 
 @dataclass

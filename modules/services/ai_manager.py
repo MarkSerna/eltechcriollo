@@ -19,48 +19,68 @@ class AIManager:
         self.ollama_url = config.ai.ollama_url
         self.ollama_model = config.ai.ollama_model
         self.gemini_key = config.ai.gemini_api_key
+        self.provider = config.ai.ai_provider.lower()
+        self.gemini_cooldown = config.ai.gemini_cooldown
         self.db = DatabaseManager()
         self.search_service = SearchManager()
         
-        # Configurar Gemini si hay llave
+        # Configurar Gemini si hay llave disponible
         if self.gemini_key and GEMINI_AVAILABLE:
             genai.configure(api_key=self.gemini_key)
             self.gemini_model = genai.GenerativeModel('gemini-3-flash-preview')
-            logger.info("⚡ IA de Google Gemini configurada y lista (Modo Cloud).")
+            if self.provider == "gemini":
+                logger.info("⚡ IA de Google Gemini configurada como Proveedor Principal (Cloud).")
+            else:
+                logger.info("⚡ IA de Google Gemini configurada como Proveedor de Fallback.")
         else:
             self.gemini_model = None
 
     async def _call_llm(self, prompt: str, temperature: float = 0.7, max_tokens: int = 2048) -> str:
-        """Helper para decidir entre Gemini y Ollama automáticamente."""
+        """Helper para decidir entre Gemini y Ollama basado en configuración."""
         
-        # Opción 1: Gemini (Si hay llave)
-        if self.gemini_model:
-            try:
-                # El SDK de google-generativeai es síncrono por defecto en llamadas simples, 
-                # pero gemma4 es para el caso local. Gemini es mucho más rápido.
-                response = self.gemini_model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(
-                        temperature=temperature,
-                        max_output_tokens=max_tokens
-                    )
-                )
-                
-                # Throttling: Esperar 60 segundos (1 RPM) para asegurar que no chocamos con la cuota.
-                # El usuario prefiere máxima seguridad para evitar errores 429.
-                import asyncio
-                await asyncio.sleep(60)
-                
-                return response.text.strip()
-            except Exception as e:
-                if "429" in str(e):
-                    logger.warning("⏳ Cuota de Gemini excedida (Rate Limit). Esperando 60 segundos antes de reintentar...")
-                    import asyncio
-                    await asyncio.sleep(60)
-                logger.error(f"Error llamando a Gemini API: {e}. Reintentando con Ollama si es posible...")
-                # Si falla Gemini, intentamos fallback a Ollama si está vivo
+        # Lógica de Prioridades
+        # 1. Si el proveedor es 'gemini', intentamos Gemini -> Ollama (Fallback)
+        # 2. Si el proveedor es 'local', intentamos Ollama -> Gemini (Fallback)
+        
+        first_attempt = self.provider
+        
+        if first_attempt == "gemini":
+            response = await self._try_gemini(prompt, temperature, max_tokens)
+            if response: return response
+            return await self._try_ollama(prompt, temperature, max_tokens)
+        else:
+            response = await self._try_ollama(prompt, temperature, max_tokens)
+            if response: return response
+            return await self._try_gemini(prompt, temperature, max_tokens)
 
-        # Opción 2: Ollama (Fallback o por defecto)
+    async def _try_gemini(self, prompt: str, temperature: float, max_tokens: int) -> str | None:
+        """Intento de llamada a Gemini con manejo de cuota."""
+        if not self.gemini_model:
+            return None
+            
+        try:
+            response = self.gemini_model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens
+                )
+            )
+            
+            # Cooldown configurable
+            if self.gemini_cooldown > 0:
+                import asyncio
+                await asyncio.sleep(self.gemini_cooldown)
+                
+            return response.text.strip()
+        except Exception as e:
+            if "429" in str(e):
+                logger.warning("⏳ Cuota de Gemini excedida (Rate Limit).")
+            logger.error(f"Error llamando a Gemini API: {e}")
+            return None
+
+    async def _try_ollama(self, prompt: str, temperature: float, max_tokens: int) -> str | None:
+        """Intento de llamada a Ollama Local."""
         payload = {
             "model": self.ollama_model,
             "prompt": prompt,
@@ -78,8 +98,8 @@ class AIManager:
                 data = response.json()
                 return data.get("response", "").strip()
         except Exception as e:
-            logger.error(f"Falla total de IA (Ollama/Gemini): {e}")
-            return "Lo siento, todos mis motores de pensamiento están fuera de línea."
+            logger.error(f"Error llamando a Ollama: {e}")
+            return None
 
     async def ping(self) -> bool:
         """Revisa si al menos un motor de IA responde."""

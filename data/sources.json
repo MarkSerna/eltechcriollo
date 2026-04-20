@@ -167,5 +167,11 @@
         "url": "https://deepmind.google/discover/blog/feed/",
         "type": "rss",
         "region": "global"
+    },
+    {
+        "name": "RedesZone",
+        "url": "https://www.redeszone.net/feed/",
+        "type": "rss",
+        "region": "global"
     }
 ]

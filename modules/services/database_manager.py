@@ -80,25 +80,37 @@ class DatabaseManager:
             query_create = query_create.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
 
         try:
+            # 1. Crear tabla base
             with self.engine.begin() as conn:
-                logger.debug("🔨 Ejecutando Query de creación de tabla...")
+                logger.debug("🔨 Verificando/Creando tabla base...")
                 conn.execute(text(query_create))
-                
-                # Gestión de columnas faltantes (migraciones simples)
-                for col_name in ['image_url', 'region', 'department']:
-                    try:
-                        conn.execute(text(f"ALTER TABLE {self.table_name} ADD COLUMN {col_name} TEXT"))
-                        logger.info(f"🛠 Columna '{col_name}' añadida exitosamente.")
-                    except Exception:
-                        # Probablemente ya existe
-                        pass
-                
-                # Verificación final
-                res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
-                tables = [row[0] for row in res.fetchall()]
-                logger.info(f"🔍 [POST-INIT] Tablas actuales en public: {tables}")
-                        
-            logger.info("✅ Esquema de base de datos verificado y listo.")
+            
+            # 2. Gestión de columnas faltantes (migraciones simples)
+            is_postgres = "postgresql" in self.db_url
+            for col_name in ['image_url', 'region', 'department']:
+                try:
+                    if is_postgres:
+                        # PostgreSQL soporta ADD COLUMN IF NOT EXISTS (9.6+)
+                        with self.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS {col_name} TEXT"))
+                    else:
+                        # SQLite no soporta IF NOT EXISTS en ALTER TABLE, usamos try/except individual
+                        with self.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE {self.table_name} ADD COLUMN {col_name} TEXT"))
+                except Exception:
+                    # Probablemente la columna ya existe
+                    logger.debug(f"ℹ️ Columna '{col_name}' ya presente o no se pudo añadir.")
+                    pass
+            
+            # 3. Verificación final (en una conexión limpia)
+            with self.engine.connect() as conn:
+                if is_postgres:
+                    res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+                    tables = [row[0] for row in res.fetchall()]
+                    logger.info(f"🔍 [POST-INIT] Tablas actuales en public: {tables}")
+                else:
+                    logger.info("✅ Esquema de base de datos verificado y listo.")
+                    
         except SQLAlchemyError as e:
             logger.error(f"❌ Error crítico inicializando el esquema: {e}")
 

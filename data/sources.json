@@ -143,5 +143,29 @@
         "type": "rss",
         "region": "colombia",
         "require_ai": true
+    },
+    {
+        "name": "OpenAI Official Blog",
+        "url": "https://openai.com/news/rss.xml",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "Xataka Inteligencia Artificial",
+        "url": "https://www.xataka.com/tag/inteligencia-artificial/rss",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "Wired AI",
+        "url": "https://www.wired.com/category/artificial-intelligence/feed/",
+        "type": "rss",
+        "region": "global"
+    },
+    {
+        "name": "Google DeepMind Blog",
+        "url": "https://deepmind.google/discover/blog/feed/",
+        "type": "rss",
+        "region": "global"
     }
 ]

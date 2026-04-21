@@ -3,6 +3,7 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, List, Set, Dict, Any
+import bcrypt
 from modules.utils.logger import logger
 from modules.models.config import config
 
@@ -85,11 +86,20 @@ class DatabaseManager:
         )
         """
 
+        query_admin_users = f"""
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE,
+            password_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+
         # Ajuste para SQLite (SERIAL no existe)
         if "sqlite" in self.db_url:
             query_create = query_create.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
             query_ai_logs = query_ai_logs.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
-            query_ai_logs = query_ai_logs.replace("ai_usage_logs", "ai_usage_logs") # Consistent
+            query_admin_users = query_admin_users.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
 
         try:
             # 1. Crear tablas base
@@ -97,8 +107,12 @@ class DatabaseManager:
                 logger.debug("🔨 Verificando/Creando tabla base...")
                 conn.execute(text(query_create))
                 conn.execute(text(query_ai_logs))
+                conn.execute(text(query_admin_users))
             
-            # 2. Gestión de columnas faltantes (migraciones simples)
+            # 2. Bootstrap: Crear admin inicial si no hay ninguno
+            self._bootstrap_admin()
+
+            # 3. Gestión de columnas faltantes
             is_postgres = "postgresql" in self.db_url
             for col_name in ['image_url', 'region', 'department']:
                 try:
@@ -235,3 +249,96 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error obteniendo estadísticas de IA: {e}")
             return {}
+
+    def _bootstrap_admin(self) -> None:
+        """Crea el usuario admin inicial si la tabla está vacía."""
+        if not self.engine: return
+        try:
+            with self.engine.connect() as conn:
+                res = conn.execute(text("SELECT COUNT(*) FROM admin_users")).scalar()
+                if res == 0:
+                    logger.info("🔐 Iniciando bootstrap de seguridad: Creando usuario 'admin' por defecto.")
+                    password = "admin123".encode('utf-8')
+                    hashed = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+                    conn.execute(
+                        text("INSERT INTO admin_users (username, password_hash) VALUES (:u, :p)"),
+                        {"u": "admin", "p": hashed}
+                    )
+                    conn.commit()
+        except Exception as e:
+            logger.error(f"Error en bootstrap de admin: {e}")
+
+    def verify_credentials(self, username, password) -> bool:
+        """Valida que el usuario y la contraseña sean correctos."""
+        if not self.engine: return False
+        try:
+            with self.engine.connect() as conn:
+                query = text("SELECT password_hash FROM admin_users WHERE username = :u")
+                res = conn.execute(query, {"u": username}).fetchone()
+                if not res: return False
+                
+                stored_hash = res[0].encode('utf-8')
+                return bcrypt.checkpw(password.encode('utf-8'), stored_hash)
+        except Exception as e:
+            logger.error(f"Error verificando credenciales: {e}")
+            return False
+
+    def create_admin_user(self, username, password) -> bool:
+        """Crea un nuevo administrador."""
+        if not self.engine: return False
+        try:
+            hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            with self.engine.begin() as conn:
+                conn.execute(
+                    text("INSERT INTO admin_users (username, password_hash) VALUES (:u, :p)"),
+                    {"u": username, "p": hashed}
+                )
+            return True
+        except Exception as e:
+            logger.error(f"Error creando administrador: {e}")
+            return False
+
+    def get_all_admins(self) -> list:
+        """Lista todos los administradores registrados."""
+        if not self.engine: return []
+        try:
+            with self.engine.connect() as conn:
+                res = conn.execute(text("SELECT id, username, created_at FROM admin_users")).fetchall()
+                return [{"id": r[0], "username": r[1], "created_at": r[2]} for r in res]
+        except Exception as e:
+            logger.error(f"Error listando administradores: {e}")
+            return []
+
+    def get_articles_with_placeholder(self, placeholder: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Identifica artículos que tienen el texto de 'procesando' para intentar repararlos."""
+        if not self.engine: return []
+        try:
+            with self.engine.connect() as conn:
+                query = text(f"""
+                    SELECT title, url, source, region, department, image_url 
+                    FROM {self.table_name} 
+                    WHERE ai_comment = :placeholder
+                    ORDER BY processed_at DESC LIMIT :limit
+                """)
+                rows = conn.execute(query, {"placeholder": placeholder, "limit": limit}).fetchall()
+                keys = ["title", "link", "source_name", "region", "department", "image_url"]
+                return [dict(zip(keys, row)) for row in rows]
+        except SQLAlchemyError as e:
+            logger.error(f"Error buscando artículos con placeholder: {e}")
+            return []
+
+    def update_article_ai_content(self, url: str, ai_comment: str, reel_script: str) -> bool:
+        """Actualiza el contenido de IA para un artículo existente."""
+        if not self.engine: return False
+        try:
+            with self.engine.begin() as conn:
+                query = text(f"""
+                    UPDATE {self.table_name} 
+                    SET ai_comment = :comment, reel_script = :reel
+                    WHERE url = :url
+                """)
+                conn.execute(query, {"comment": ai_comment, "reel": reel_script, "url": url})
+            return True
+        except SQLAlchemyError as e:
+            logger.error(f"Error actualizando contenido de IA para {url}: {e}")
+            return False

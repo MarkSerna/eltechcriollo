@@ -1,10 +1,9 @@
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import FastAPI, Form, Depends, HTTPException, Request, BackgroundTasks
 from starlette.middleware.sessions import SessionMiddleware
 import os
-
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,14 +19,20 @@ from modules.services.database_manager import DatabaseManager
 from modules.utils.logger import logger
 from modules.services.notification_manager import NotificationManager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from modules.models.config import config
+import bcrypt
 
 app = FastAPI(title="El Tech Criollo - Intelligence Hub")
 
 # Configuración de Seguridad (Sesiones)
-SECRET_KEY = os.getenv("SECRET_KEY", "flash_default_secret_999")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+SECRET_KEY = config.system.secret_key
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+# Servir Archivos Estáticos de React (Producción)
+frontend_dist = Path(__file__).parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
 
 def is_authenticated(request: Request):
     """Verifica si la sesión del usuario es válida."""
@@ -111,52 +116,65 @@ def _group_by_day(articles: list) -> list:
     return result
 
 
-async def render_dashboard(request: Request, is_admin: bool = False):
-    """Función unificada para renderizar el tablero."""
+@app.get("/api/news")
+async def get_news_api():
+    """Endpoint que devuelve toda la estructura de noticias para el Front-end React."""
     articles = db.get_todays_articles()
-
+    
     colombia_news = [a for a in articles if a.get("region") == "colombia"]
     global_news   = [a for a in articles if a.get("region") == "global"]
-
-    # Artículo destacado: el más reciente de Colombia
-    featured = colombia_news[0] if colombia_news else None
-
-    # ── Mapa regional: agrupar noticias colombianas por departamento ──────
+    
+    # Noticia Destacada
+    featured = colombia_news[0] if colombia_news else (global_news[0] if global_news else None)
+    
+    # Agrupar Colombia por departamentos
     from collections import defaultdict
-    dept_raw: dict[str, list] = defaultdict(list)
+    dept_raw = defaultdict(list)
     for article in colombia_news:
         dept = article.get("department") or "Nacional"
         dept_raw[dept].append(article)
-
-    # Ordenar: primero departamentos con más noticias, sumando puntos artificiales al Eje Cafetero
+    
     EJE_CAFETERO = {"Caldas", "Risaralda", "Quindío", "Quindio"}
+    sorted_depts = []
+    for dept, arts in dept_raw.items():
+        if dept != "Nacional":
+            sorted_depts.append({"name": dept, "articles": arts})
+            
     sorted_depts = sorted(
-        [(dept, arts) for dept, arts in dept_raw.items() if dept != "Nacional"],
-        key=lambda x: len(x[1]) + (100 if x[0] in EJE_CAFETERO else 0),
-        reverse=True,
+        sorted_depts,
+        key=lambda x: len(x["articles"]) + (100 if x["name"] in EJE_CAFETERO else 0),
+        reverse=True
     )
+    
     if "Nacional" in dept_raw:
-        sorted_depts.append(("Nacional", dept_raw["Nacional"]))
+        sorted_depts.append({"name": "Nacional", "articles": dept_raw["Nacional"]})
+    
+    # Agrupar Todo por Días (para el Feed principal)
+    days_feed = _group_by_day(articles)
+    
+    return {
+        "featured": featured,
+        "colombia": colombia_news,
+        "global": global_news,
+        "departments": sorted_depts,
+        "days_feed": days_feed
+    }
 
-    departments_map = dict(sorted_depts)
+@app.get("/api/auth/me")
+async def get_auth_me(request: Request):
+    """Devuelve el estado de autenticación actual."""
+    return {
+        "authenticated": request.session.get("authenticated", False),
+        "username": request.session.get("username", "Invitado")
+    }
 
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={
-            "featured":         featured,
-            "days_colombia":    _group_by_day(colombia_news[1:] if featured else colombia_news),
-            "days_global":      _group_by_day(global_news),
-            "departments_map":  departments_map,
-            "global_news":      global_news,
-            "is_admin":         is_admin,
-        }
-    )
-
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    """Renderiza el tablero interactivo de lectura (Público)."""
-    return await render_dashboard(request, is_admin=False)
+@app.get("/", response_class=FileResponse)
+async def home():
+    """Sirve la aplicación React."""
+    index_path = frontend_dist / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return HTMLResponse("<h1>Frontend no compilado</h1><p>Ejecuta 'npm run build' en la carpeta frontend.</p>")
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -164,14 +182,18 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-async def login(request: Request, password: str = Form(...)):
+async def login(request: Request, username: str = Form("admin"), password: str = Form(...)):
     """Procesa el inicio de sesión."""
-    if password == ADMIN_PASSWORD:
+    db = DatabaseManager()
+    if db.verify_credentials(username, password):
         request.session["authenticated"] = True
-        logger.info("🔐 Administración: Sesión iniciada con éxito.")
+        request.session["username"] = username
         return RedirectResponse(url="/admin", status_code=303)
-    else:
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Contraseña incorrecta"})
+    
+    return templates.TemplateResponse("login.html", {
+        "request": request, 
+        "error": "Credenciales inválidas. Intenta de nuevo."
+    })
 
 @app.get("/logout")
 async def logout(request: Request):
@@ -191,6 +213,18 @@ async def get_ai_stats(authenticated: bool = Depends(is_authenticated)):
     db = DatabaseManager()
     stats = db.get_ai_stats()
     return stats
+
+@app.get("/api/admins")
+async def get_admins(authenticated: bool = Depends(is_authenticated)):
+    db = DatabaseManager()
+    return db.get_all_admins()
+
+@app.post("/api/admins")
+async def add_admin(request: Request, authenticated: bool = Depends(is_authenticated)):
+    data = await request.json()
+    db = DatabaseManager()
+    success = db.create_admin_user(data['username'], data['password'])
+    return {"success": success}
 
 @app.get("/api/stats")
 async def get_stats(authenticated: bool = Depends(is_authenticated)):

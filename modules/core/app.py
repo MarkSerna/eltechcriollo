@@ -21,6 +21,53 @@ from deep_translator import GoogleTranslator
 # Avoid blasting Ollama with dozens of heavy inferences simultaneously
 ai_semaphore = asyncio.Semaphore(2)
 
+async def repair_placeholder_articles(db_manager, ai_manager):
+    """Ciclo de reparación de noticias con análisis fallidos."""
+    placeholder = "Análisis en progreso: El robot está procesando los detalles técnicos de esta noticia de alto impacto."
+    articles_data = await asyncio.to_thread(db_manager.get_articles_with_placeholder, placeholder, 5)
+    
+    if not articles_data:
+        return
+        
+    logger.info(f"🔧 Iniciando ciclo de reparación: {len(articles_data)} noticias detectadas con placeholder.")
+    
+    from modules.models.source import ScrapedArticle
+    
+    for data in articles_data:
+        article = ScrapedArticle(
+            title=data['title'],
+            link=data['link'],
+            source_name=data['source_name'],
+            region=data['region'],
+            department=data['department'],
+            image_url=data['image_url'],
+            summary=data['title'] 
+        )
+        
+        async with ai_semaphore:
+            logger.info(f"♻️ Re-generando análisis para: {article.title[:20]}...")
+            # Peticiones en paralelo
+            results = await asyncio.gather(
+                ai_manager.generate_comment(article),
+                ai_manager.generate_reel_script(article),
+                return_exceptions=True
+            )
+            
+            comment = results[0] if not isinstance(results[0], Exception) else None
+            reel = results[1] if not isinstance(results[1], Exception) else ""
+            
+            if comment and placeholder not in comment:
+                success = await asyncio.to_thread(
+                    db_manager.update_article_ai_content, 
+                    article.link, 
+                    comment, 
+                    str(reel)
+                )
+                if success:
+                    logger.info(f"✅ Noticia reparada con éxito: {article.title[:40]}")
+            else:
+                logger.warning(f"⚠️ Reintento de IA fallido para: {article.title[:40]}")
+
 async def main_orchestrator():
     """Lógica principal de orquestación 100% asíncrona y ultrarrápida."""
     logger.info("=========================================")
@@ -173,6 +220,9 @@ async def main_orchestrator():
         # Notificar las top 3 al canal de Telegram directo
         for article in filtered_and_novel_articles[:3]:
             await notification_manager.send_telegram_visual_news(article)
+            
+    # 6. Auto-reparación de fallos previos
+    await repair_placeholder_articles(db_manager, ai_manager)
         
     logger.info("🏁 Orquestación secuencial finalizada exitosamente.")
     return filtered_and_novel_articles

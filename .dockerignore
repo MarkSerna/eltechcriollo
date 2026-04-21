@@ -22,3 +22,9 @@ reports/
 README.md
 Dockerfile
 docker-compose.yml
+
+# Frontend (Build isolation)
+frontend/node_modules/
+frontend/dist/
+node_modules/
+.npm/

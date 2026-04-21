@@ -141,11 +141,12 @@ class AIManager:
         1. Escribe en tercera persona de forma clara.
         2. NO actúes como IA, simplemente DA LA NOTICIA.
         3. CITA LA FUENTE OBLIGATORIAMENTE con este enlace exacto: {article.link}
+        4. Devuelve el texto en formato PLANO, SIN Markdown (no uses asteriscos ni negritas).
         
         Noticia Base (Título): {article.title}
         Extracto Original: {article.summary[:500]}
         
-        Devuelve SOLO la noticia redactada final."""
+        Devuelve SOLO la noticia redactada final. No incluyas títulos extra."""
         
         return await self._call_llm(prompt, temperature=0.8)
 

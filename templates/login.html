@@ -164,10 +164,17 @@
 
         <form action="/login" method="POST">
             <div class="form-group">
-                <label for="password">Contraseña Maestra</label>
+                <label for="username">Usuario</label>
+                <div class="input-wrapper">
+                    <i class='bx bx-user'></i>
+                    <input type="text" id="username" name="username" placeholder="Tu nombre de usuario" required autofocus>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña</label>
                 <div class="input-wrapper">
                     <i class='bx bx-lock-alt'></i>
-                    <input type="password" id="password" name="password" placeholder="••••••••" required autofocus>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
                 </div>
             </div>
             <button type="submit" class="btn-login">Ingresar al Hub</button>

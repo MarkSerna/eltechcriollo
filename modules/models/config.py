@@ -16,6 +16,13 @@ class TelegramConfig:
 
 
 @dataclass
+class SystemConfig:
+    """Configuración base del sistema."""
+    secret_key: str = os.getenv("SECRET_KEY", "flash_default_secret_999")
+    admin_password: str = os.getenv("ADMIN_PASSWORD", "admin123")
+
+
+@dataclass
 class PathConfig:
     """Configuración de rutas del sistema."""
     data_dir: Path = Path(os.getenv("DB_DIR", "data"))
@@ -95,6 +102,7 @@ class AIConfig:
 @dataclass
 class AppConfig:
     """Configuración global de la aplicación."""
+    system: SystemConfig = None
     paths: PathConfig = None
     scraper: ScraperConfig = None
     discord: DiscordConfig = None
@@ -104,6 +112,8 @@ class AppConfig:
     cleanup_days: int = int(os.getenv("CLEANUP_DAYS", "7"))
     
     def __post_init__(self):
+        if self.system is None:
+            self.system = SystemConfig()
         if self.paths is None:
             self.paths = PathConfig()
         if self.scraper is None:

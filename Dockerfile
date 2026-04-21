@@ -1,13 +1,21 @@
+# --- STAGE 1: Build React Frontend ---
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ .
+RUN npm run build
+
+# --- STAGE 2: final Python Environment ---
 FROM python:3.11-slim-bookworm
 
 # Evitar que python escriba bytecode (.pyc) a disco y forzar stdout buffering
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Crear carpeta del contenedor
 WORKDIR /app
 
-# Instalar dependencias del sistema mínimas para Playwright/Chromium en Debian Bookworm
+# Instalar dependencias del sistema mínimas para Playwright/Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
@@ -42,11 +50,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar navegador Chromium (sin descargar dependencias de nuevo, ya las pusimos arriba)
+# Instalar navegador Chromium
 RUN playwright install chromium
 
-# Copiar el código fuente
+# Copiar el código fuente del backend
 COPY . .
 
-# Comando default: Uvicorn estable (sin --reload para que el scheduler no muera)
+# Copiar el build del frontend facilitado por el Stage 1
+COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
+
+# Comando default: Uvicorn estable
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

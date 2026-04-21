@@ -40,6 +40,10 @@
                 <i class='bx bx-show-alt'></i>
                 <span>Vista Previa</span>
             </div>
+            <div class="admin-nav-item" onclick="showTab('security')">
+                <i class='bx bx-shield-quarter'></i>
+                <span>Seguridad</span>
+            </div>
         </nav>
 
         <div style="margin-top: auto;">
@@ -154,6 +158,31 @@
             </div>
         </div>
 
+        <!-- Tab: Security -->
+        <div id="tab-security" class="tab-content" style="display: none;">
+            <div class="admin-content-card">
+                <h3>Gestión de Administradores</h3>
+                <p style="color: var(--text-muted); margin-bottom: 2rem;">Maneja quién tiene acceso al centro de inteligencia.</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <h4>Usuarios Activos</h4>
+                        <div id="admins-list" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 10px;">
+                            <!-- JS population -->
+                        </div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
+                        <h4>Añadir nuevo Administrador</h4>
+                        <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem;">
+                            <input type="text" id="new-admin-user" placeholder="Nombre de usuario" style="padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-dark); color: white;">
+                            <input type="password" id="new-admin-pass" placeholder="Contraseña" style="padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-dark); color: white;">
+                            <button onclick="addNewAdmin()" class="btn btn-primary">Crear Usuario</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -228,6 +257,47 @@
                     statusEl.innerText = "Inactivo 💤";
                 }
             } catch (err) { }
+        }
+
+        async function fetchAdmins() {
+            try {
+                const res = await fetch('/api/admins');
+                const admins = await res.json();
+                const list = document.getElementById('admins-list');
+                list.innerHTML = admins.map(a => `
+                    <div style="background: var(--card-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <i class='bx bx-user-circle' style="font-size: 1.5rem; color: #3b82f6;"></i>
+                            <div>
+                                <div style="font-weight: 700;">${a.username}</div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted);">Desde: ${new Date(a.created_at).toLocaleDateString()}</div>
+                            </div>
+                        </div>
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">Activo</span>
+                    </div>
+                `).join('');
+            } catch (err) { }
+        }
+
+        async function addNewAdmin() {
+            const username = document.getElementById('new-admin-user').value;
+            const password = document.getElementById('new-admin-pass').value;
+            if(!username || !password) return alert("Por favor completa los campos");
+
+            try {
+                const res = await fetch('/api/admins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert("¡Administrador creado!");
+                    document.getElementById('new-admin-user').value = "";
+                    document.getElementById('new-admin-pass').value = "";
+                    fetchAdmins();
+                }
+            } catch (err) { alert("Error al crear usuario"); }
         }
 
         function updateCountdown() {
@@ -330,6 +400,7 @@
         // Init
         fetchStats();
         fetchAIStats();
+        fetchAdmins();
         setInterval(fetchAIStats, 30000); // Refrescar cada 30s
         setInterval(updateCountdown, 1000); // Countdown cada segundo
     </script>

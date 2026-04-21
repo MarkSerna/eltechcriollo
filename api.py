@@ -39,10 +39,13 @@ from modules.services.telegram_listener import TelegramBotListener
 import asyncio
 
 # Configuración de Programación Automática (Cada 30 min)
+# Instancia global del programador
+scheduler = AsyncIOScheduler()
+
 @app.on_event("startup")
 async def start_scheduler():
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(main_orchestrator, 'interval', minutes=5)
+    # Añadimos el job de orquestación con ID para poder consultarlo
+    scheduler.add_job(main_orchestrator, 'interval', minutes=5, id='scraping_job')
     scheduler.start()
     logger.info("⏰ Programador activado: Escaneo autónomo cada 5 minutos configurado.")
     
@@ -198,10 +201,17 @@ async def get_stats(authenticated: bool = Depends(is_authenticated)):
     with open(sources_path, "r", encoding="utf-8") as f:
         sources = json.load(f)
     
+    # Obtener el tiempo del próximo escaneo
+    next_scan = "N/A"
+    job = scheduler.get_job('scraping_job')
+    if job and job.next_run_time:
+        next_scan = job.next_run_time.isoformat()
+
     return {
         "articles_today": len(articles),
         "sources_count": len(sources),
-        "recent_articles": articles[:5]
+        "recent_articles": articles[:5],
+        "next_scan": next_scan
     }
 
 @app.get("/api/logs")

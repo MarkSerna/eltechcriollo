@@ -46,9 +46,13 @@ async def start_scheduler():
     scheduler.start()
     logger.info("⏰ Programador activado: Escaneo autónomo cada 30 minutos configurado.")
     
-    # Iniciar oyente de Chat para Telegram
-    listener = TelegramBotListener()
-    asyncio.create_task(listener.poll())
+    # Iniciar oyente de Chat para Telegram (Solo en local, desactivado en Render)
+    if os.getenv("RENDER") != "true":
+        listener = TelegramBotListener()
+        asyncio.create_task(listener.poll())
+        logger.info("🤖 Oyente de Telegram activado (Modo Interactivo Local)")
+    else:
+        logger.info("🚫 Entorno Render detectado: El Bot no responderá a mensajes directos (Polling desactivado)")
 
 # Setup directories for static and templates
 static_dir = Path(__file__).parent / "static"
@@ -177,7 +181,62 @@ async def admin_home(request: Request):
     """Renderiza el tablero interactivo de lectura (Admin)."""
     if not request.session.get("authenticated"):
         return RedirectResponse(url="/login")
-    return await render_dashboard(request, is_admin=True)
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+@app.get("/api/stats")
+async def get_stats(authenticated: bool = Depends(is_authenticated)):
+    """Retorna estadísticas para el dashboard admin."""
+    articles = db.get_todays_articles()
+    import json
+    sources_path = Path(__file__).parent / "data" / "sources.json"
+    with open(sources_path, "r", encoding="utf-8") as f:
+        sources = json.load(f)
+    
+    return {
+        "articles_today": len(articles),
+        "sources_count": len(sources),
+        "recent_articles": articles[:5]
+    }
+
+@app.get("/api/logs")
+async def get_logs(authenticated: bool = Depends(is_authenticated)):
+    """Lee las últimas líneas del log de hoy."""
+    from datetime import date
+    today_str = date.today().isoformat()
+    log_file = Path(__file__).parent / "logs" / f"bot_{today_str}.log"
+    
+    if not log_file.exists():
+        return {"logs": ["No hay logs registrados para hoy todavía."]}
+    
+    with open(log_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+        
+    return {"logs": lines[-100:]} # Últimas 100 líneas
+
+@app.get("/api/dictionary")
+async def get_dictionary(authenticated: bool = Depends(is_authenticated)):
+    """Retorna el contenido del diccionario técnico."""
+    import json
+    dict_path = Path(__file__).parent / "data" / "tech_dictionary.json"
+    with open(dict_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    
+    # Flatten groups for easier JS handling
+    entries = []
+    for group, items in data.items():
+        for item in items:
+            entries.append({"entity": item, "type": group})
+            
+    return {"entries": entries}
+
+@app.get("/api/sources")
+async def get_sources(authenticated: bool = Depends(is_authenticated)):
+    """Retorna la lista de fuentes configuradas."""
+    import json
+    sources_path = Path(__file__).parent / "data" / "sources.json"
+    with open(sources_path, "r", encoding="utf-8") as f:
+        sources = json.load(f)
+    return {"sources": sources}
 
 @app.post("/api/test-telegram")
 async def test_telegram(authenticated: bool = Depends(is_authenticated)):

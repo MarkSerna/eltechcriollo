@@ -25,6 +25,18 @@
             <div class="top-links">
                 <a href="#" style="color: white; text-decoration: none; margin-left: 15px;">Newsletter</a>
                 <a href="#" style="color: white; text-decoration: none; margin-left: 15px;">Podcast</a>
+                {% if is_admin %}
+                    <a href="/admin" style="color: #60a5fa; text-decoration: none; margin-left: 15px; font-weight: 800;">
+                        <i class='bx bxs-dashboard'></i> DASHBOARD
+                    </a>
+                    <a href="/logout" style="color: #ef4444; text-decoration: none; margin-left: 15px; font-weight: 800;">
+                        <i class='bx bx-log-out'></i>
+                    </a>
+                {% else %}
+                    <a href="/login" style="color: rgba(255,255,255,0.5); text-decoration: none; margin-left: 15px;">
+                        <i class='bx bxs-lock-alt'></i> Admin
+                    </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -41,30 +53,17 @@
                     <a href="#global">Global</a>
                     <a href="#ia">IA &amp; Futuro</a>
                 </nav>
-                {% if is_admin %}
-                <div class="action-buttons" style="display: flex; gap: 10px;">
-                    <button id="btn-test-tg" class="btn btn-secondary" title="Probar conexión con Telegram">
-                        <i class='bx bxl-telegram'></i>
-                    </button>
-                    <button id="btn-scrape" class="btn btn-primary">
-                        <i class='bx bx-refresh'></i> Escanear
-                    </button>
-                    <a href="/logout" class="btn btn-secondary" title="Cerrar Sesión">
-                        <i class='bx bx-log-out'></i>
-                    </a>
-                </div>
-                {% else %}
-                <div class="action-buttons">
-                    <a href="/login" class="btn btn-secondary" style="font-size: 0.7rem;">
-                        <i class='bx bxs-lock-alt'></i> Admin
-                    </a>
-                </div>
-                {% endif %}
             </div>
         </div>
     </header>
 
     <main class="container">
+        
+        <!-- ══ Search Bar ══════════════════════════════════════════════ -->
+        <div class="search-container" style="margin: 2rem auto;">
+            <i class='bx bx-search'></i>
+            <input type="text" id="search-input" class="search-input" placeholder="Buscar startups, IA, reportes de gobierno...">
+        </div>
 
         <!-- ══ Hero: Artículo Destacado ══════════════════════════════════ -->
         <div class="portal-hero">
@@ -148,7 +147,7 @@
                                 <img src="{{ article.image_url }}" onerror="this.parentElement.style.display='none';" alt="News" loading="lazy">
                             </div>
                             {% endif %}
-                            <span class="article-source">{{ article.source_name }}</span>
+                            <div class="category-badges"></div>
                             <h3>{{ article.title }}</h3>
                             <span class="read-more">Insight IA y Detalles <i class='bx bx-right-arrow-alt'></i></span>
                         </article>
@@ -187,7 +186,7 @@
                                  data-img="{{ article.image_url if article.image_url else '' }}"
                                  data-comment="{{ article.ai_comment | e }}"
                                  data-link="{{ article.link }}">
-                            <span class="article-source">{{ article.source_name }}</span>
+                            <div class="category-badges"></div>
                             <h3>{{ article.title }}</h3>
                             <span class="read-more">Insight IA y Detalles <i class='bx bx-right-arrow-alt'></i></span>
                         </article>
@@ -250,6 +249,18 @@
 
     </main>
 
+    <!-- ══ Newsletter Section ════════════════════════════════════════ -->
+    <section class="newsletter-section" style="background: #f8fafc; padding: 4rem 1rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+        <div class="container" style="text-align: center; max-width: 600px;">
+            <h2 style="font-family: var(--font-serif); font-weight: 900; font-size: 2rem; margin-bottom: 1rem;">Radar Semanal</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Recibe cada domingo el resumen de los movimientos más importantes del ecosistema tech colombiano curado por nuestra IA.</p>
+            <form style="display: flex; gap: 10px; justify-content: center;">
+                <input type="email" placeholder="tu@correo.com" style="padding: 0.8rem 1.2rem; border-radius: 6px; border: 1px solid var(--border); flex-grow: 1; outline: none;">
+                <button type="button" class="btn btn-primary" onclick="showNotification('¡Pronto activaremos el newsletter!', 'info')">SUSCRIBIRME</button>
+            </form>
+        </div>
+    </section>
+
     <footer>
         <div class="container footer-content">
             <div class="footer-logo" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -257,6 +268,7 @@
                 <span>EL TECH CRIOLLO</span>
             </div>
             <p>Monitoreando el pulso de la innovación tecnológica. Impulsado por IA y curado por humanos.</p>
+            
             <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.6;">&copy; 2026 Tech Criollo Intelligence Hub. Todos los derechos reservados.</p>
         </div>
     </footer>
@@ -395,6 +407,71 @@
                 }
             });
         }
+        // ── Buscador Dinámico ──────────────────────────────────────────
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('.article-card, .mini-card, .day-group').forEach(el => {
+                    if (el.classList.contains('day-group')) {
+                        // Si no hay artículos visibles en el grupo, ocultar el grupo
+                        setTimeout(() => {
+                            const visible = el.querySelectorAll('.article-card[style*="display: flex"]').length > 0;
+                            el.style.display = (visible || term === "") ? 'block' : 'none';
+                        }, 10);
+                        return;
+                    }
+                    
+                    const title = (el.dataset.title || el.querySelector('h3, h4').innerText).toLowerCase();
+                    const source = (el.dataset.source || "").toLowerCase();
+                    const comment = (el.dataset.comment || "").toLowerCase();
+                    
+                    if (title.includes(term) || source.includes(term) || comment.includes(term)) {
+                        el.style.display = el.classList.contains('article-card') ? 'flex' : 'block';
+                    } else {
+                        el.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // ── Auto-Categorización Simple ─────────────────────────────────────
+        const KEYWORDS = {
+            'ia': ['ia', 'inteligencia artificial', 'openai', 'gemini', 'modelo', 'llm', 'algoritmo'],
+            'startup': ['startup', 'emprendimiento', 'fintech', 'levantó', 'ronda', 'inversión', 'vc', 'unicornio'],
+            'gov': ['gobierno', 'mintic', 'sena', 'conpes', 'alcaldía', 'política', 'ley', 'regulación'],
+            'business': ['negocio', 'empresa', 'alianza', 'expansión', 'mercado', 'adquisición']
+        };
+
+        function tagArticles() {
+            document.querySelectorAll('.article-card').forEach(card => {
+                const text = (card.dataset.title + " " + card.dataset.comment).toLowerCase();
+                const container = card.querySelector('.category-badges');
+                if (!container) return;
+                
+                let tagged = false;
+                if (KEYWORDS.ia.some(k => text.includes(k))) {
+                    container.innerHTML += '<span class="category-badge badge-ia">IA</span>';
+                    tagged = true;
+                }
+                if (KEYWORDS.startup.some(k => text.includes(k))) {
+                    container.innerHTML += '<span class="category-badge badge-startup">Startup</span>';
+                    tagged = true;
+                }
+                if (KEYWORDS.gov.some(k => text.includes(k))) {
+                    container.innerHTML += '<span class="category-badge badge-gov">Gobierno</span>';
+                    tagged = true;
+                }
+                if (!tagged) {
+                    container.innerHTML += '<span class="category-badge badge-business">Tech</span>';
+                }
+
+                // Append original source too as a badge
+                container.innerHTML += `<span class="category-badge" style="background:#f1f5f9; color:#64748b">${card.dataset.source}</span>`;
+            });
+        }
+        tagArticles();
+
         // ── Tabs de Departamentos ──────────────────────────────────────────
         document.querySelectorAll('.region-tab').forEach(tab => {
             tab.addEventListener('click', () => {

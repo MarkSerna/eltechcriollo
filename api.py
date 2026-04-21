@@ -183,6 +183,12 @@ async def admin_home(request: Request):
         return RedirectResponse(url="/login")
     return templates.TemplateResponse("admin.html", {"request": request})
 
+@app.get("/api/ai-stats")
+async def get_ai_stats(authenticated: bool = Depends(is_authenticated)):
+    db = DatabaseManager()
+    stats = db.get_ai_stats()
+    return stats
+
 @app.get("/api/stats")
 async def get_stats(authenticated: bool = Depends(is_authenticated)):
     """Retorna estadísticas para el dashboard admin."""

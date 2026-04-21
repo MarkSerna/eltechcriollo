@@ -72,11 +72,13 @@ class AIManager:
                 if self.gemini_cooldown > 0:
                     import asyncio
                     await asyncio.sleep(self.gemini_cooldown)
-                    
+                
+                self.db.log_ai_usage("gemini", "success")
                 return response.text.strip()
             except Exception as e:
                 err_str = str(e)
                 if "429" in err_str:
+                    self.db.log_ai_usage("gemini", "429")
                     wait_time = (attempt + 1) * 10
                     logger.warning(f"⏳ Cuota excedida (429). Reintentando en {wait_time}s... (Intento {attempt+1}/{retries})")
                     import asyncio
@@ -109,6 +111,7 @@ class AIManager:
                 response = await client.post(f"{self.ollama_url}/api/generate", json=payload, timeout=180.0)
                 response.raise_for_status()
                 data = response.json()
+                self.db.log_ai_usage("ollama", "success")
                 return data.get("response", "").strip()
         except Exception as e:
             err_str = str(e)
@@ -116,6 +119,7 @@ class AIManager:
                 self._ollama_failed_dns = True # Desactivar para esta sesión
                 logger.debug("🔕 Ollama no disponible (Localhost no encontrado). Fallback desactivado.")
             else:
+                self.db.log_ai_usage("ollama", "error")
                 logger.debug(f"Info: Ollama fallback omitido: {err_str}")
             return None
 

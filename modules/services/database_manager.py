@@ -75,15 +75,28 @@ class DatabaseManager:
             processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
+        
+        query_ai_logs = f"""
+        CREATE TABLE IF NOT EXISTS ai_usage_logs (
+            id SERIAL PRIMARY KEY,
+            provider TEXT,
+            status TEXT, -- 'success', 'error', '429'
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+
         # Ajuste para SQLite (SERIAL no existe)
         if "sqlite" in self.db_url:
             query_create = query_create.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
+            query_ai_logs = query_ai_logs.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
+            query_ai_logs = query_ai_logs.replace("ai_usage_logs", "ai_usage_logs") # Consistent
 
         try:
-            # 1. Crear tabla base
+            # 1. Crear tablas base
             with self.engine.begin() as conn:
                 logger.debug("🔨 Verificando/Creando tabla base...")
                 conn.execute(text(query_create))
+                conn.execute(text(query_ai_logs))
             
             # 2. Gestión de columnas faltantes (migraciones simples)
             is_postgres = "postgresql" in self.db_url
@@ -189,3 +202,36 @@ class DatabaseManager:
                     pass
             logger.error(f"Error obteniendo artículos de la DB: {e}")
             return []
+
+    def log_ai_usage(self, provider: str, status: str) -> None:
+        """Registra el uso de la IA para monitoreo de cuota."""
+        if not self.engine: return
+        try:
+            with self.engine.begin() as conn:
+                query = text("INSERT INTO ai_usage_logs (provider, status) VALUES (:p, :s)")
+                conn.execute(query, {"p": provider, "s": status})
+        except Exception as e:
+            logger.error(f"Error loggeando uso de IA: {e}")
+
+    def get_ai_stats(self) -> Dict[str, Any]:
+        """Obtiene estadísticas de uso de IA en la última hora."""
+        if not self.engine: return {}
+        try:
+            with self.engine.connect() as conn:
+                # PostgreSQL vs SQLite timestamp logic
+                if "postgresql" in self.db_url:
+                    time_filter = "timestamp > NOW() - INTERVAL '1 hour'"
+                else:
+                    time_filter = "timestamp > datetime('now', '-1 hour')"
+                
+                query = text(f"SELECT status, COUNT(*) FROM ai_usage_logs WHERE {time_filter} GROUP BY status")
+                res = conn.execute(query).fetchall()
+                
+                stats = {"success": 0, "429": 0, "error": 0, "total": 0}
+                for row in res:
+                    stats[row[0]] = row[1]
+                    stats["total"] += row[1]
+                return stats
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas de IA: {e}")
+            return {}

@@ -76,10 +76,10 @@
                     <span class="value" id="stat-sources">--</span>
                     <span class="trend"><i class='bx bx-check-shield'></i> Monitoreadas</span>
                 </div>
-                <div class="stat-card">
-                    <span class="label">Salud IA</span>
-                    <span class="value">98%</span>
-                    <span class="trend up"><i class='bx bx-pulse'></i> Estable</span>
+                <div class="stat-card" id="ai-health-card">
+                    <span class="label">Salud IA (Últ. hora)</span>
+                    <span class="value" id="ai-health-status">Estable</span>
+                    <span class="trend" id="ai-hits">-- peticiones</span>
                 </div>
                 <div class="stat-card">
                     <span class="label">Próximo Scan</span>
@@ -197,6 +197,32 @@
             } catch (err) { console.error("Error stats", err); }
         }
 
+        async function fetchAIStats() {
+            try {
+                const res = await fetch('/api/ai-stats');
+                const data = await res.json();
+                const card = document.getElementById('ai-health-card');
+                const statusEl = document.getElementById('ai-health-status');
+                const hitsEl = document.getElementById('ai-hits');
+                
+                const total = data.total || 0;
+                const errors429 = data['429'] || 0;
+                hitsEl.innerText = `${total} peticiones`;
+
+                if (errors429 > 0) {
+                    statusEl.innerText = "Limitado ⚠️";
+                    statusEl.style.color = "#f59e0b";
+                    card.style.borderColor = "#f59e0b";
+                } else if (total > 0) {
+                    statusEl.innerText = "Óptimo ✅";
+                    statusEl.style.color = "#10b981";
+                    card.style.borderColor = "#10b981";
+                } else {
+                    statusEl.innerText = "Inactivo 💤";
+                }
+            } catch (err) { }
+        }
+
         async function fetchLogs() {
             const viewer = document.getElementById('logs-viewer');
             viewer.innerText = "Consultando logs...";
@@ -277,6 +303,8 @@
 
         // Init
         fetchStats();
+        fetchAIStats();
+        setInterval(fetchAIStats, 30000); // Refrescar cada 30s
     </script>
 </body>
 </html>

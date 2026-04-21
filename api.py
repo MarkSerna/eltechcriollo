@@ -42,9 +42,9 @@ import asyncio
 @app.on_event("startup")
 async def start_scheduler():
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(main_orchestrator, 'interval', minutes=30)
+    scheduler.add_job(main_orchestrator, 'interval', minutes=5)
     scheduler.start()
-    logger.info("⏰ Programador activado: Escaneo autónomo cada 30 minutos configurado.")
+    logger.info("⏰ Programador activado: Escaneo autónomo cada 5 minutos configurado.")
     
     # Iniciar oyente de Chat para Telegram (Solo en local, desactivado en Render)
     if os.getenv("RENDER") != "true":

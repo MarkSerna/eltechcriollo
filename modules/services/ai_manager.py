@@ -53,34 +53,47 @@ class AIManager:
             if response: return response
             return await self._try_gemini(prompt, temperature, max_tokens)
 
-    async def _try_gemini(self, prompt: str, temperature: float, max_tokens: int) -> str | None:
-        """Intento de llamada a Gemini con manejo de cuota."""
+    async def _try_gemini(self, prompt: str, temperature: float, max_tokens: int, retries: int = 3) -> str | None:
+        """Intento de llamada a Gemini con manejo de cuota y reintentos automáticos."""
         if not self.gemini_model:
             return None
             
-        try:
-            response = self.gemini_model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=temperature,
-                    max_output_tokens=max_tokens
+        for attempt in range(retries):
+            try:
+                response = self.gemini_model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=temperature,
+                        max_output_tokens=max_tokens
+                    )
                 )
-            )
-            
-            # Cooldown configurable
-            if self.gemini_cooldown > 0:
-                import asyncio
-                await asyncio.sleep(self.gemini_cooldown)
                 
-            return response.text.strip()
-        except Exception as e:
-            if "429" in str(e):
-                logger.warning("⏳ Cuota de Gemini excedida (Rate Limit).")
-            logger.error(f"Error llamando a Gemini API: {e}")
-            return None
+                # Cooldown configurable para respetar RPM
+                if self.gemini_cooldown > 0:
+                    import asyncio
+                    await asyncio.sleep(self.gemini_cooldown)
+                    
+                return response.text.strip()
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str:
+                    wait_time = (attempt + 1) * 10
+                    logger.warning(f"⏳ Cuota excedida (429). Reintentando en {wait_time}s... (Intento {attempt+1}/{retries})")
+                    import asyncio
+                    await asyncio.sleep(wait_time)
+                    continue # Reintentar
+                
+                logger.error(f"Error llamando a Gemini API: {err_str}")
+                break # Otro error, no reintentar
+                
+        return None
 
     async def _try_ollama(self, prompt: str, temperature: float, max_tokens: int) -> str | None:
-        """Intento de llamada a Ollama Local."""
+        """Intento de llamada a Ollama Local, silenciado en entornos donde no existe."""
+        # Evitar inundar logs si sabemos que no está disponible (ej. Render)
+        if getattr(self, '_ollama_failed_dns', False):
+            return None
+
         payload = {
             "model": self.ollama_model,
             "prompt": prompt,
@@ -98,7 +111,12 @@ class AIManager:
                 data = response.json()
                 return data.get("response", "").strip()
         except Exception as e:
-            logger.error(f"Error llamando a Ollama: {e}")
+            err_str = str(e)
+            if "Name or service not known" in err_str or "ConnectionRefusedError" in err_str:
+                self._ollama_failed_dns = True # Desactivar para esta sesión
+                logger.debug("🔕 Ollama no disponible (Localhost no encontrado). Fallback desactivado.")
+            else:
+                logger.debug(f"Info: Ollama fallback omitido: {err_str}")
             return None
 
     async def ping(self) -> bool:

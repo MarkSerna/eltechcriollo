@@ -147,8 +147,17 @@ async def main_orchestrator():
                     
         return valid_source_articles
 
-    # Esperamos a que todas las fuentes terminen en paralelo
-    results = await asyncio.gather(*[process_source(src) for src in sources])
+    # Proceso SECUENCIAL con retraso para respetar la cuota de la IA (Solicitud del usuario)
+    results = []
+    for src in sources:
+        try:
+            res_list = await process_source(src)
+            results.append(res_list)
+            # Pequeña pausa entre fuentes para no saturar la API
+            await asyncio.sleep(5) 
+        except Exception as e:
+            logger.error(f"Falla procesando fuente {src.name}: {e}")
+
     for res_list in results:
         filtered_and_novel_articles.extend(res_list)
                     
@@ -157,14 +166,15 @@ async def main_orchestrator():
     # 4. Reportabilidad
     report_path = await asyncio.to_thread(report_manager.generate_markdown, filtered_and_novel_articles)
     
-    # 5. Notificación Multi-canal
-    if report_path:
+    # 5. Notificación Multi-canal (Solo si hay novedades potentes)
+    if report_path and filtered_and_novel_articles:
         await notification_manager.send_discord_file(report_path)
         
-        for article in filtered_and_novel_articles[:5]:
+        # Notificar las top 3 al canal de Telegram directo
+        for article in filtered_and_novel_articles[:3]:
             await notification_manager.send_telegram_visual_news(article)
         
-    logger.info("🏁 Orquestación asíncrona finalizada exitosamente.")
+    logger.info("🏁 Orquestación secuencial finalizada exitosamente.")
     return filtered_and_novel_articles
 
 if __name__ == "__main__":

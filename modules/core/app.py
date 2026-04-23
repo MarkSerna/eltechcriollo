@@ -219,7 +219,9 @@ async def main_orchestrator():
         
         # Notificar las top 3 al canal de Telegram directo
         for article in filtered_and_novel_articles[:3]:
-            await notification_manager.send_telegram_visual_news(article)
+            success = await notification_manager.send_telegram_visual_news(article)
+            if success:
+                await asyncio.to_thread(db_manager.mark_as_sent_to_telegram, article.link)
             
     # 6. Auto-reparación de fallos previos
     await repair_placeholder_articles(db_manager, ai_manager)

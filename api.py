@@ -1,6 +1,5 @@
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi import FastAPI, Form, Depends, HTTPException, Request, BackgroundTasks
 from starlette.middleware.sessions import SessionMiddleware
 import os
@@ -29,7 +28,10 @@ SECRET_KEY = config.system.secret_key
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# Servir Archivos Estáticos de React (Producción)
+# Static files configuration
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# If frontend is built, mount it
 frontend_dist = Path(__file__).parent / "frontend" / "dist"
 if frontend_dist.exists():
     app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
@@ -182,31 +184,60 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-async def login(request: Request, username: str = Form("admin"), password: str = Form(...)):
-    """Procesa el inicio de sesión."""
+async def login(request: Request):
+    """Procesa el inicio de sesión vía JSON para el frontend React."""
+    try:
+        data = await request.json()
+        username = data.get("username", "admin")
+        password = data.get("password")
+    except:
+        # Fallback para compatibilidad con Forms si fuera necesario
+        form_data = await request.form()
+        username = form_data.get("username", "admin")
+        password = form_data.get("password")
+
+    if not password:
+        return JSONResponse(status_code=400, content={"error": "Contraseña requerida"})
+
     db = DatabaseManager()
     if db.verify_credentials(username, password):
         request.session["authenticated"] = True
         request.session["username"] = username
-        return RedirectResponse(url="/admin", status_code=303)
+        return {"status": "ok", "message": "Autenticación exitosa", "user": {"username": username}}
     
-    return templates.TemplateResponse("login.html", {
-        "request": request, 
-        "error": "Credenciales inválidas. Intenta de nuevo."
-    })
+    return JSONResponse(status_code=401, content={"error": "Credenciales inválidas. Intenta de nuevo."})
 
 @app.get("/logout")
 async def logout(request: Request):
     """Cierra la sesión administrativa."""
     request.session.clear()
-    return RedirectResponse(url="/")
+    return {"status": "ok", "message": "Sesión cerrada"}
 
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_home(request: Request):
-    """Renderiza el tablero interactivo de lectura (Admin)."""
-    if not request.session.get("authenticated"):
-        return RedirectResponse(url="/login")
-    return templates.TemplateResponse("admin.html", {"request": request})
+@app.get("/login", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
+async def serve_spa(request: Request):
+    """Sirve la aplicación React (SPA) para las rutas principales."""
+    index_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
+    if not index_path.exists():
+        return HTMLResponse("<h1>Error: Frontend no compilado</h1><p>Ejecuta 'npm run build' en la carpeta frontend.</p>")
+    return FileResponse(index_path)
+
+@app.get("/{full_path:path}")
+async def catch_all(request: Request, full_path: str):
+    """Catch-all para soportar React Router (SPA)."""
+    # Evitar interceptar API o archivos estáticos
+    if full_path.startswith("api") or full_path.startswith("static") or full_path.startswith("assets"):
+        return None 
+    
+    # Si tiene extensión de archivo, probablemente no es una ruta de React
+    if "." in full_path and not full_path.endswith(".html"):
+        return None
+
+    index_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return HTMLResponse("Not Found", status_code=404)
 
 @app.get("/api/ai-stats")
 async def get_ai_stats(authenticated: bool = Depends(is_authenticated)):
@@ -339,3 +370,56 @@ async def resend_article(request: ArticleResendRequest, authenticated: bool = De
         return JSONResponse(content={"status": "ok", "message": "¡Noticia reenviada con éxito a Telegram!"})
     else:
         return JSONResponse(status_code=500, content={"status": "error", "message": "Fallo al reenviar la noticia."})
+
+@app.get("/api/admin/news")
+async def get_admin_news(authenticated: bool = Depends(is_authenticated)):
+    """Retorna el listado completo de noticias para la gestión administrativa."""
+    news = db.get_all_news_manager(limit=100)
+    return {"news": news}
+
+@app.post("/api/admin/reprocess")
+async def reprocess_article(request: Request, authenticated: bool = Depends(is_authenticated)):
+    """Dispara el re-procesamiento de IA para una noticia específica."""
+    data = await request.json()
+    url = data.get("url")
+    if not url:
+        return JSONResponse(status_code=400, content={"error": "URL requerida"})
+        
+    from modules.services.ai_manager import AIManager
+    ai_manager = AIManager()
+    
+    success = await ai_manager.reprocess_article_by_url(url)
+    if success:
+        return {"status": "ok", "message": "Noticia re-procesada exitosamente."}
+    else:
+        return JSONResponse(status_code=500, content={"error": "Fallo al re-procesar la noticia con IA."})
+
+@app.post("/api/admin/publish-telegram")
+async def publish_telegram(request: Request, authenticated: bool = Depends(is_authenticated)):
+    """Fuerza el envío de una noticia al canal de Telegram."""
+    data = await request.json()
+    url = data.get("url")
+    if not url:
+        return JSONResponse(status_code=400, content={"error": "URL requerida"})
+        
+    article_data = db.get_article_by_url(url)
+    if not article_data:
+        return JSONResponse(status_code=404, content={"error": "Noticia no encontrada"})
+        
+    nm = NotificationManager()
+    
+    # Adaptar datos para el notifier
+    class FakeArticle:
+        def __init__(self, data):
+            self.title = data.get('title')
+            self.link = data.get('url')
+            self.source_name = data.get('source')
+            self.ai_comment = data.get('ai_comment')
+            self.image_url = data.get('image_url')
+
+    success = await nm.send_telegram_visual_news(FakeArticle(article_data))
+    if success:
+        db.mark_as_sent_to_telegram(url)
+        return {"status": "ok", "message": "Noticia enviada a Telegram y marcada en BD."}
+    else:
+        return JSONResponse(status_code=500, content={"error": "Fallo al enviar a Telegram."})

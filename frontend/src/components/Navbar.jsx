@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Coffee, Sun, Moon, Lock, Mail, Podcast } from 'lucide-react';
+import { Coffee, Sun, Moon, Lock, Mail, Podcast, Cpu } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
-const Navbar = () => {
+const Navbar = ({ isAdmin, onLoginClick }) => {
   const { theme, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
@@ -25,7 +25,6 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
       {/* 🔝 Utility Bar (Black Style) */}
@@ -33,15 +32,21 @@ const Navbar = () => {
         <div className="hidden sm:flex items-center space-x-4">
           <span className="font-medium tracking-widest">{currentDate}</span>
           <span className="text-slate-600">|</span>
-          {/* Newsletter/Podcast moved to main header */}
         </div>
         <div className="flex items-center space-x-4 ml-auto">
-          <Link to="/admin" className="flex items-center gap-1 hover:text-white transition-colors font-bold tracking-tighter">
-            <Lock className="w-3 h-3" /> ADMIN
-          </Link>
+          {isAdmin ? (
+            <span className="flex items-center gap-1 text-emerald-400 font-bold tracking-tighter">
+              <Lock className="w-3 h-3" /> SESIÓN ACTIVA
+            </span>
+          ) : (
+            <button onClick={onLoginClick} className="flex items-center gap-1 hover:text-white transition-colors font-bold tracking-tighter uppercase cursor-pointer">
+              <Lock className="w-3 h-3" /> ACCESO
+            </button>
+          )}
+          
           <button 
             onClick={toggleTheme}
-            className="hover:text-white transition-colors p-1"
+            className="hover:text-white transition-colors p-1 cursor-pointer"
           >
             {theme === 'dark' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
@@ -70,6 +75,11 @@ const Navbar = () => {
  
           {/* Main Navigation - Newsletter/Podcast */}
           <div className="hidden lg:flex items-center space-x-8">
+            {isAdmin && (
+               <Link to="/admin" className="text-[10px] font-black tracking-widest text-[#229ED9] hover:text-sky-400 transition-colors flex items-center gap-2 py-1 uppercase decoration-2 underline-offset-4">
+                 <Cpu className="w-4 h-4" /> GESTIÓN TECH
+               </Link>
+            )}
             <a href="#" className="text-xs font-black tracking-widest text-slate-700 dark:text-slate-200 hover:text-primary-light transition-colors flex items-center gap-2 py-1">
               <Mail className="w-4 h-4" /> NEWSLETTER
             </a>
@@ -77,8 +87,6 @@ const Navbar = () => {
               <Podcast className="w-4 h-4" /> PODCAST
             </a>
           </div>
-
-          {/* Mobile Menu Overlay removed as requested */}
         </div>
       </div>
     </nav>

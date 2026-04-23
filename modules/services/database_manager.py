@@ -73,6 +73,7 @@ class DatabaseManager:
             ai_comment TEXT,
             reel_script TEXT,
             image_url TEXT,
+            telegram_sent BOOLEAN DEFAULT FALSE,
             processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
@@ -114,16 +115,19 @@ class DatabaseManager:
 
             # 3. Gestión de columnas faltantes
             is_postgres = "postgresql" in self.db_url
-            for col_name in ['image_url', 'region', 'department']:
+            for col_name in ['image_url', 'region', 'department', 'telegram_sent']:
                 try:
                     if is_postgres:
                         # PostgreSQL soporta ADD COLUMN IF NOT EXISTS (9.6+)
                         with self.engine.begin() as conn:
-                            conn.execute(text(f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS {col_name} TEXT"))
+                            # Ajuste dinámico para tipos (booleano vs texto)
+                            db_type = "BOOLEAN DEFAULT FALSE" if col_name == "telegram_sent" else "TEXT"
+                            conn.execute(text(f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS {col_name} {db_type}"))
                     else:
-                        # SQLite no soporta IF NOT EXISTS en ALTER TABLE, usamos try/except individual
+                        # SQLite no soporta IF NOT EXISTS en ALTER TABLE
                         with self.engine.begin() as conn:
-                            conn.execute(text(f"ALTER TABLE {self.table_name} ADD COLUMN {col_name} TEXT"))
+                            db_type = "BOOLEAN DEFAULT FALSE" if col_name == "telegram_sent" else "TEXT"
+                            conn.execute(text(f"ALTER TABLE {self.table_name} ADD COLUMN {col_name} {db_type}"))
                 except Exception:
                     # Probablemente la columna ya existe
                     logger.debug(f"ℹ️ Columna '{col_name}' ya presente o no se pudo añadir.")
@@ -196,12 +200,12 @@ class DatabaseManager:
         try:
             with self.engine.connect() as conn:
                 query = text(f"""
-                    SELECT title, url, source, region, department, ai_comment, reel_script, image_url, processed_at 
+                    SELECT title, url, source, region, department, ai_comment, reel_script, image_url, telegram_sent, processed_at 
                     FROM {self.table_name} ORDER BY processed_at DESC LIMIT 150
                 """)
                 rows = conn.execute(query).fetchall()
                 keys = ["title", "link", "source_name", "region", "department",
-                        "ai_comment", "reel_script", "image_url", "processed_at"]
+                        "ai_comment", "reel_script", "image_url", "telegram_sent", "processed_at"]
                 return [dict(zip(keys, row)) for row in rows]
         except SQLAlchemyError as e:
             if self.table_name in str(e) and "does not exist" in str(e):
@@ -342,3 +346,51 @@ class DatabaseManager:
         except SQLAlchemyError as e:
             logger.error(f"Error actualizando contenido de IA para {url}: {e}")
             return False
+
+    def mark_as_sent_to_telegram(self, url: str) -> bool:
+        """Marca un artículo como enviado al canal de Telegram."""
+        if not self.engine: return False
+        try:
+            with self.engine.begin() as conn:
+                query = text(f"UPDATE {self.table_name} SET telegram_sent = TRUE WHERE url = :url")
+                conn.execute(query, {"url": url})
+            return True
+        except SQLAlchemyError as e:
+            logger.error(f"Error marcando como enviado a Telegram {url}: {e}")
+            return False
+
+    def get_all_news_manager(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Retorna una lista extendida de noticias para gestión administrativa."""
+        if not self.engine: return []
+        try:
+            with self.engine.connect() as conn:
+                query = text(f"""
+                    SELECT title, url, source, region, department, ai_comment, reel_script, image_url, telegram_sent, processed_at 
+                    FROM {self.table_name} 
+                    ORDER BY processed_at DESC LIMIT :limit
+                """)
+                rows = conn.execute(query, {"limit": limit}).fetchall()
+                keys = ["title", "link", "source_name", "region", "department",
+                        "ai_comment", "reel_script", "image_url", "telegram_sent", "processed_at"]
+                return [dict(zip(keys, row)) for row in rows]
+        except SQLAlchemyError as e:
+            logger.error(f"Error obteniendo noticias para el manager: {e}")
+            return []
+
+    def get_article_by_url(self, url: str) -> Optional[Dict[str, Any]]:
+        """Busca un artículo específico por su URL."""
+        if not self.engine: return None
+        try:
+            with self.engine.connect() as conn:
+                query = text(f"SELECT * FROM {self.table_name} WHERE url = :url")
+                row = conn.execute(query, {"url": url}).fetchone()
+                if row:
+                    # En SQLAlchemy 1.4+ se usa _mapping, en versiones anteriores se puede convertir el Row
+                    try:
+                        return dict(row._mapping)
+                    except AttributeError:
+                        return dict(row)
+                return None
+        except SQLAlchemyError as e:
+            logger.error(f"Error buscando artículo por URL: {e}")
+            return None

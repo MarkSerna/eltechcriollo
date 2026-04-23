@@ -196,3 +196,36 @@ Respuesta:"""
 <ASSISTANT>"""
 
         return await self._call_llm(prompt)
+
+    async def reprocess_article_by_url(self, url: str) -> bool:
+        """Regenera el contenido de IA para un artículo específico y actualiza la BD."""
+        article_data = await asyncio.to_thread(self.db.get_article_by_url, url)
+        if not article_data:
+            return False
+            
+        # Reconstruir el objeto ScrapedArticle
+        # Nota: Usamos el título como resumen para el re-procesamiento si el resumen original no está disponible
+        article = ScrapedArticle(
+            title=article_data.get('title'),
+            link=article_data.get('url'),
+            source_name=article_data.get('source'),
+            summary=article_data.get('title') 
+        )
+        article.region = article_data.get('region')
+        article.department = article_data.get('department')
+        article.image_url = article_data.get('image_url')
+        
+        # Generar contenido
+        import asyncio
+        results = await asyncio.gather(
+            self.generate_comment(article),
+            self.generate_reel_script(article),
+            return_exceptions=True
+        )
+        
+        comment = results[0] if not isinstance(results[0], Exception) else None
+        reel = results[1] if not isinstance(results[1], Exception) else ""
+        
+        if comment:
+            return await asyncio.to_thread(self.db.update_article_ai_content, url, comment, str(reel))
+        return False

@@ -1,9 +1,9 @@
 import React from 'react';
-import { ExternalLink, MessageSquareQuote, Calendar } from 'lucide-react';
+import { ExternalLink, MessageSquareQuote, Calendar, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const NewsCard = ({ article, onClick }) => {
-  const { title, source_name, image_url, ai_comment, created_at, link } = article;
+  const { title, source_name, image_url, ai_comment, created_at, telegram_sent } = article;
   const rawDate = new Date(created_at);
   const isValidDate = !isNaN(rawDate.getTime());
   
@@ -29,6 +29,14 @@ const NewsCard = ({ article, onClick }) => {
             {source_name}
           </span>
         </div>
+        
+        {telegram_sent && (
+          <div className="absolute top-3 right-3" title="Enviado a Telegram">
+            <div className="bg-[#229ED9] text-white p-1.5 rounded-full shadow-lg border border-white/20 animate-in zoom-in duration-300">
+              <Send className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}

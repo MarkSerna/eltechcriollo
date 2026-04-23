@@ -65,6 +65,15 @@ async def repair_placeholder_articles(db_manager, ai_manager):
                 )
                 if success:
                     logger.info(f"✅ Noticia reparada con éxito: {article.title[:40]}")
+                    # Notificar a Telegram inmediatamente tras la reparación
+                    article.ai_comment = comment
+                    article.reel_script = reel
+                    from modules.services.notification_manager import NotificationManager
+                    nm = NotificationManager()
+                    sent = await nm.send_telegram_visual_news(article)
+                    if sent:
+                        await asyncio.to_thread(db_manager.mark_as_sent_to_telegram, article.link)
+                        logger.info(f"📲 Noticia reparada enviada a Telegram: {article.title[:40]}")
             else:
                 logger.warning(f"⚠️ Reintento de IA fallido para: {article.title[:40]}")
 
@@ -82,17 +91,19 @@ async def main_orchestrator():
     notification_manager = NotificationManager()
     ai_manager = AIManager()
     
-    sources_path = config.paths.sources_path
-    if not sources_path.exists():
-        logger.error(f"El archivo de fuentes no existe en la ruta configurada: {sources_path}")
-        return []
-        
-    try:
-        with open(sources_path, 'r', encoding='utf-8') as f:
-            raw_sources = json.load(f)
-            sources = [SourceConfig.from_dict(src) for src in raw_sources]
-    except Exception as e:
-        logger.error(f"Error interpretando sources.json: {e}")
+    # Cargar fuentes desde la Base de Datos
+    db_sources = await asyncio.to_thread(db_manager.get_all_sources)
+    sources = []
+    for s_dict in db_sources:
+        if not s_dict.get("is_active", True):
+            continue
+        try:
+            sources.append(SourceConfig.from_dict(s_dict))
+        except Exception as e:
+            logger.error(f"Error cargando configuración para fuente {s_dict.get('name')}: {e}")
+            
+    if not sources:
+        logger.warning("⚠️ No se encontraron fuentes activas para procesar.")
         return []
         
     logger.info(f"Se cargaron correctamente {len(sources)} fuentes para escanear en paralelo.")
@@ -100,10 +111,12 @@ async def main_orchestrator():
     filtered_and_novel_articles = []
     
     async def process_source(source):
+        from datetime import datetime, timedelta
         logger.info(f"🕷 Escaneando: {source.name} via {source.type.upper()}")
         articles = await scraper_manager.fetch(source)
         
         valid_source_articles = []
+        recent_threshold = datetime.utcnow() - timedelta(days=3)
         
         # Pasa 1: Filtro de Novedad BATCH (No estar en BD)
         urls = [a.link for a in articles]
@@ -111,6 +124,11 @@ async def main_orchestrator():
         
         for article in articles:
             if article.link in processed_urls:
+                continue
+            
+            # Pasa 1.5: Filtro de Fecha (si está disponible en el modelo)
+            if article.pub_date and article.pub_date < recent_threshold:
+                logger.debug(f"⏩ [{source.name}] Omitiendo por antigüedad: {article.title[:40]}")
                 continue
 
             # Pasa 2: Filtro TechFilter (scoring ponderado + exclusión negativa)
@@ -169,10 +187,14 @@ async def main_orchestrator():
                 
                 async with ai_semaphore:
                     # Invocamos en paralelo la petición del comentario y la del reel a Ollama/Gemini
-                    comment, reel = await asyncio.gather(
+                    results = await asyncio.gather(
                         ai_manager.generate_comment(article),
-                        ai_manager.generate_reel_script(article)
+                        ai_manager.generate_reel_script(article),
+                        return_exceptions=True
                     )
+                    comment = results[0] if not isinstance(results[0], Exception) else None
+                    reel = results[1] if not isinstance(results[1], Exception) else ""
+
                     # Fallbacks si la IA falla (cuota excedida o caída)
                     article.ai_comment = comment or "Análisis en progreso: El robot está procesando los detalles técnicos de esta noticia de alto impacto."
                     article.reel_script = reel or "Guión no disponible momentáneamente por alta demanda de procesamiento."
@@ -217,8 +239,11 @@ async def main_orchestrator():
     if report_path and filtered_and_novel_articles:
         await notification_manager.send_discord_file(report_path)
         
-        # Notificar las top 3 al canal de Telegram directo
-        for article in filtered_and_novel_articles[:3]:
+        # Notificar las top 10 al canal de Telegram directo
+        # Evitar enviar noticias que tengan el mensaje de "placeholder" (esperarán a la reparación)
+        news_to_send = [a for a in filtered_and_novel_articles if "Análisis en progreso" not in a.ai_comment][:10]
+        
+        for article in news_to_send:
             success = await notification_manager.send_telegram_visual_news(article)
             if success:
                 await asyncio.to_thread(db_manager.mark_as_sent_to_telegram, article.link)

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
+from datetime import datetime
 
 @dataclass
 class SourceConfig:
@@ -43,6 +44,7 @@ class ScrapedArticle:
     ai_comment: str = ""
     reel_script: str = ""
     image_url: Optional[str] = None
+    pub_date: Optional[datetime] = None
 
     def get_content_snapshot(self) -> str:
         """Retorna una versión unificada del texto para analizar palabras clave."""

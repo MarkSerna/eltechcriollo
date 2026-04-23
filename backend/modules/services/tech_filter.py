@@ -21,10 +21,12 @@ SCORE_THRESHOLD_REQUIRE_AI = 999  # Imposible de alcanzar sin IA → siempre va 
 
 
 def _load_dictionary() -> dict:
-    """Carga el diccionario desde data/tech_dictionary.json con caché en módulo."""
-    dict_path = Path("data/tech_dictionary.json")
+    """Carga el diccionario desde backend/data/tech_dictionary.json."""
+    from modules.models.config import config
+    dict_path = config.paths.base_dir / "data" / "tech_dictionary.json"
+    
     if not dict_path.exists():
-        logger.warning("⚠️  tech_dictionary.json no encontrado. TechFilter usará listas vacías.")
+        logger.warning(f"⚠️  tech_dictionary.json no encontrado en {dict_path}. TechFilter usará listas vacías.")
         return {"TECH_STRICT": [], "TECH_ENTITIES": [], "TECH_SUPPORTING": [], "TECH_NEGATIVE": []}
     try:
         with open(dict_path, "r", encoding="utf-8") as f:

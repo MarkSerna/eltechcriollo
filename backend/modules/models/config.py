@@ -25,13 +25,16 @@ class SystemConfig:
 @dataclass
 class PathConfig:
     """Configuración de rutas del sistema."""
-    data_dir: Path = Path(os.getenv("DB_DIR", "data"))
+    # Base directory is the root of the backend folder
+    base_dir: Path = Path(__file__).parent.parent.parent
+    
+    data_dir: Path = Path(os.getenv("DB_DIR", base_dir / "data"))
     db_name: str = os.getenv("DB_NAME", "tech_history.db")
-    database_url: str = os.getenv("DATABASE_URL", "") # Soporte para Supabase/PostgreSQL
+    database_url: str = os.getenv("DATABASE_URL", "") 
     db_fallback: bool = os.getenv("DB_FALLBACK", "true").lower() == "true"
-    sources_path: Path = Path(os.getenv("SOURCES_PATH", "data/sources.json"))
-    reports_dir: Path = Path(os.getenv("REPORTS_DIR", "reports"))
-    logs_dir: Path = Path(os.getenv("LOGS_DIR", "logs"))
+    sources_path: Path = Path(os.getenv("SOURCES_PATH", base_dir / "data" / "sources.json"))
+    reports_dir: Path = Path(os.getenv("REPORTS_DIR", base_dir / "reports"))
+    logs_dir: Path = Path(os.getenv("LOGS_DIR", base_dir / "logs"))
     
     @property
     def db_path(self) -> Path:
@@ -51,8 +54,11 @@ class ScraperConfig:
         """Carga los keywords desde tech_dictionary.json si existen; usa fallback si no."""
         import json
         from pathlib import Path
-
-        dict_path = Path("data/tech_dictionary.json")
+        
+        # Usar la base_dir definida en PathConfig para localizar el diccionario
+        base_dir = Path(__file__).parent.parent.parent
+        dict_path = base_dir / "data" / "tech_dictionary.json"
+        
         dictionary = {}
         if dict_path.exists():
             try:

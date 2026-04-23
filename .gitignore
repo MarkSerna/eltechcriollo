@@ -147,11 +147,12 @@ cython_debug/
 # Custom project paths
 *.db
 *.sqlite
-data/*.db
-data/*.sqlite
-logs/
-reports/*.md
-!reports/test_connection.md
+backend/data/*.db
+backend/data/*.sqlite
+backend/logs/
+backend/__pycache__/
+backend/reports/*.md
+!backend/reports/test_connection.md
 node_modules/
 .docker-compose.lock
 scratch/

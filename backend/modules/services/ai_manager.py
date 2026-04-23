@@ -4,6 +4,7 @@ from modules.models.config import config
 from modules.models.source import ScrapedArticle
 from modules.services.database_manager import DatabaseManager
 from modules.services.search_manager import SearchManager
+import asyncio
 
 # Soporte opcional para Google Gemini
 try:
@@ -70,7 +71,6 @@ class AIManager:
                 
                 # Cooldown configurable para respetar RPM
                 if self.gemini_cooldown > 0:
-                    import asyncio
                     await asyncio.sleep(self.gemini_cooldown)
                 
                 self.db.log_ai_usage("gemini", "success")
@@ -81,7 +81,6 @@ class AIManager:
                     self.db.log_ai_usage("gemini", "429")
                     wait_time = (attempt + 1) * 10
                     logger.warning(f"⏳ Cuota excedida (429). Reintentando en {wait_time}s... (Intento {attempt+1}/{retries})")
-                    import asyncio
                     await asyncio.sleep(wait_time)
                     continue # Reintentar
                 
@@ -216,7 +215,6 @@ Respuesta:"""
         article.image_url = article_data.get('image_url')
         
         # Generar contenido
-        import asyncio
         results = await asyncio.gather(
             self.generate_comment(article),
             self.generate_reel_script(article),

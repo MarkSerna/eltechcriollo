@@ -1,18 +1,34 @@
 name: techcriollo
+
 services:
-  bot_scrapper:
-    build: .
-    container_name: techcriollo-app
+  # --- Backend Service (FastAPI + Playwright) ---
+  techcriollo-api:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: techcriollo-api
     env_file:
-      - .env
+      - ./backend/.env
     volumes:
-      # Mapeo completo para desarrollo (hot-reload habilitado en main.py)
-#       - .:/app
-      # Mapeo explícito de carpetas persistentes
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./reports:/app/reports
-      - ./static:/app/static
+      # Persistencia de datos críticos
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+      - ./backend/reports:/app/reports
+      - ./backend/static:/app/static
+    # Exponemos el puerto 8001 en el host para evitar conflictos (mapeado al 8000 interno)
     ports:
-      - "8088:8000"
+      - "8001:8000"
+    restart: unless-stopped
+
+  # --- Frontend Service (React + Nginx) ---
+  techcriollo-web:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: techcriollo-web
+    ports:
+      # Mantenemos el puerto 8088 que el usuario ya conoce para acceder vía navegador
+      - "8088:80"
+    depends_on:
+      - techcriollo-api
     restart: unless-stopped

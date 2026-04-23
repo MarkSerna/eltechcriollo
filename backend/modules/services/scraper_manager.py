@@ -67,7 +67,8 @@ class ScraperManager:
             feed = feedparser.parse(response.content)
             logger.debug(f"[{source.name}] RSS extrajo {len(feed.entries)} entradas brutas.")
             
-            one_week_ago = datetime.utcnow() - timedelta(days=7)
+            # Filtro de frescura: máximo 3 días de antigüedad
+            recent_threshold = datetime.utcnow() - timedelta(days=3)
             
             for entry in feed.entries:
                 title = entry.get('title', '')
@@ -75,12 +76,13 @@ class ScraperManager:
                 summary = entry.get('summary', '')
                 image_url = self._extract_image_from_entry(entry)
                 
-                if source.region == "colombia":
-                    pub_parsed = entry.get('published_parsed') or entry.get('updated_parsed')
-                    if pub_parsed:
-                        pub_date = datetime.fromtimestamp(time.mktime(pub_parsed))
-                        if pub_date < one_week_ago:
-                            continue
+                pub_date = None
+                pub_parsed = entry.get('published_parsed') or entry.get('updated_parsed')
+                if pub_parsed:
+                    pub_date = datetime.fromtimestamp(time.mktime(pub_parsed))
+                    if pub_date < recent_threshold:
+                        logger.debug(f"⏩ [{source.name}] Omitiendo noticia antigua ({pub_date.strftime('%Y-%m-%d')}): {title[:40]}")
+                        continue
                 
                 if title and link:
                     results.append(ScrapedArticle(
@@ -89,7 +91,8 @@ class ScraperManager:
                         source_name=source.name,
                         region=source.region,
                         summary=summary,
-                        image_url=image_url
+                        image_url=image_url,
+                        pub_date=pub_date
                     ))
         except Exception as e:
             logger.error(f"Error en RSS de {source.name} ({source.url}): {e}")
@@ -188,6 +191,7 @@ class ScraperManager:
 
     async def fetch_wpapi(self, source: SourceConfig) -> List[ScrapedArticle]:
         from bs4 import BeautifulSoup as _BS
+        from datetime import datetime, timedelta
         extra = source.extra or {}
         api_base = extra.get("api_base", "").rstrip("/")
         category_id = extra.get("category_id", "")
@@ -199,9 +203,10 @@ class ScraperManager:
 
         url = f"{api_base}/posts?{params}"
         results = []
+        recent_threshold = datetime.utcnow() - timedelta(days=3)
+        
         try:
             async with httpx.AsyncClient(follow_redirects=True) as client:
-                # Quitamos compresión manual para evitar errores de streaming vacíos
                 api_headers = self.headers.copy()
                 if "Accept-Encoding" in api_headers:
                     del api_headers["Accept-Encoding"]
@@ -209,22 +214,27 @@ class ScraperManager:
                 response = await client.get(url, headers=api_headers, timeout=self.timeout)
                 response.raise_for_status()
                 
-                logger.debug(f"[{source.name}] WP API respondio Status: {response.status_code}, Length: {len(response.content)}")
-                
-                # Manejo robusto de encoding para evitar UnicodeDecodeError
                 import json
                 try:
-                    if not response.content:
-                        logger.warning(f"[{source.name}] Respuesta de API vacía (0 bytes).")
-                        return []
                     posts = response.json()
                 except Exception:
-                    logger.debug(f"[{source.name}] Falló decode UTF-8 estándar, reintentando con 'replace'...")
                     content = response.content.decode('utf-8', errors='replace')
                     posts = json.loads(content)
                 
             logger.debug(f"[{source.name}] WP API retornó {len(posts)} posts.")
             for post in posts:
+                # Filtrado por fecha
+                pub_date = None
+                raw_date = post.get("date")
+                if raw_date:
+                    try:
+                        # WP API usa formato ISO 8601 (YYYY-MM-DDTHH:MM:SS)
+                        pub_date = datetime.fromisoformat(raw_date.replace("Z", ""))
+                        if pub_date < recent_threshold:
+                            continue
+                    except Exception as e:
+                        logger.debug(f"Error parseando fecha WP {raw_date}: {e}")
+
                 title_raw = post.get("title", {})
                 title = title_raw.get("rendered", "") if isinstance(title_raw, dict) else str(title_raw)
                 title = _BS(title, "html.parser").get_text(strip=True)
@@ -236,8 +246,6 @@ class ScraperManager:
                 summary = _BS(excerpt, "html.parser").get_text(strip=True)
 
                 image_url = post.get("jetpack_featured_media_url") or None
-                
-                # Fallback a Yoast SEO (muy común en Forbes y otros medios WP)
                 if not image_url and "yoast_head_json" in post:
                     yoast = post["yoast_head_json"]
                     og_image = yoast.get("og_image")
@@ -252,9 +260,10 @@ class ScraperManager:
                         region=source.region,
                         summary=summary,
                         image_url=image_url,
+                        pub_date=pub_date
                     ))
         except Exception as e:
-            logger.error(f"Error en WP API de {source.name} ({url}): {e}", exc_info=True)
+            logger.error(f"Error en WP API de {source.name} ({url}): {e}")
         return results
 
     async def fetch_mintic(self, source: SourceConfig) -> List[ScrapedArticle]:

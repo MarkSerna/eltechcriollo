@@ -1,12 +1,4 @@
-# --- STAGE 1: Build React Frontend ---
-FROM node:20-slim AS frontend-builder
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/ .
-RUN npm run build
-
-# --- STAGE 2: final Python Environment ---
+# --- Python Runtime for Backend API ---
 FROM python:3.11-slim-bookworm
 
 # Evitar que python escriba bytecode (.pyc) a disco y forzar stdout buffering
@@ -15,7 +7,7 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Instalar dependencias del sistema mínimas para Playwright/Chromium
+# Instalar dependencias del sistema mínimas para Playwright/Chromium y PostgreSQL
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
@@ -44,20 +36,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxi6 \
     libxtst6 \
     fonts-liberation \
+    libpq-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependencias de Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar navegador Chromium
+# Instalar navegador Chromium para el scraper
 RUN playwright install chromium
+RUN playwright install-deps chromium
 
 # Copiar el código fuente del backend
 COPY . .
 
-# Copiar el build del frontend facilitado por el Stage 1
-COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
+# Asegurar que existan los directorios necesarios
+RUN mkdir -p data logs reports static templates
 
-# Comando default: Uvicorn estable
+# Comando default: Uvicorn para servir la API
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -27,6 +27,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 app = FastAPI(title="El Tech Criollo - Intelligence Hub")
 
+# --- Root Route for Health Check ---
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "El Tech Criollo API is running"}
+
 # --- Security Configuration ---
 SECRET_KEY = config.system.secret_key
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)

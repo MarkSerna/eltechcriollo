@@ -54,5 +54,8 @@ COPY . .
 # Asegurar que existan los directorios necesarios
 RUN mkdir -p data logs reports static templates
 
-# Comando default: Uvicorn para servir la API
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Exponer el puerto para Render
+EXPOSE 8000
+
+# Comando default: Uvicorn para servir la API respetando el puerto de Render
+CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

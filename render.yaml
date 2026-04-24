@@ -8,6 +8,8 @@ services:
     plan: free
     healthCheckPath: /
     envVars:
+      - key: PORT
+        value: 8000
       - key: AI_PROVIDER
         value: gemini
       - key: DATABASE_URL

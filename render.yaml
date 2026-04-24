@@ -1,0 +1,38 @@
+services:
+  # --- API Backend (FastAPI + Playwright) ---
+  - type: web
+    name: techcriollo-api
+    runtime: docker
+    dockerContext: backend
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: AI_PROVIDER
+        value: gemini
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+
+  # --- Web Frontend (React + Vite) ---
+  - type: web
+    name: techcriollo-web
+    runtime: docker
+    dockerContext: frontend
+    dockerfilePath: frontend/Dockerfile
+    plan: free
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: techcriollo-api
+          type: web
+          property: host

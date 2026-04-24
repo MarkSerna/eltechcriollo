@@ -1,6 +1,6 @@
 services:
   # --- API Backend (FastAPI + Playwright) ---
-  - type: web
+  - type: pserv
     name: techcriollo-api
     runtime: docker
     rootDir: backend
@@ -36,5 +36,5 @@ services:
       - key: VITE_API_URL
         fromService:
           name: techcriollo-api
-          type: web
+          type: pserv
           property: host

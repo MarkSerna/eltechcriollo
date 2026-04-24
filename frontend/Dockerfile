@@ -23,4 +23,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Exponer puerto estándar de servidor web
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Comando para inyectar el DNS del sistema y arrancar Nginx
+CMD ["/bin/sh", "-c", "export RESOLVER=$(awk 'BEGIN{ORS=\" \"} $1==\"nameserver\" {print $2}' /etc/resolv.conf) && sed -i \"s/RESOLVER_IP/$RESOLVER/g\" /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

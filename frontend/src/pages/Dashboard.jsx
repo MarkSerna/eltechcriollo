@@ -95,28 +95,28 @@ const Dashboard = () => {
         </div>
 
         {/* Featured Card */}
-        {data.featured && !search && filter === 'all' && (
+        {data?.featured && !search && filter === 'all' && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-12 relative h-[500px] rounded-3xl overflow-hidden group cursor-pointer shadow-2xl"
-            onClick={() => setSelectedArticle(data.featured)}
+            onClick={() => setSelectedArticle(data?.featured)}
           >
             <img 
-              src={data.featured.image_url || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=1200'} 
+              src={data?.featured?.image_url || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=1200'} 
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               alt="Featured"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
             <div className="absolute bottom-0 left-0 p-8 md:p-12 max-w-3xl">
               <span className="inline-block px-3 py-1 bg-primary-light text-white text-[10px] font-black tracking-widest uppercase rounded-full mb-4 shadow-lg">
-                DESTACADO HOY • {data.featured.source_name}
+                DESTACADO HOY • {data?.featured?.source_name}
               </span>
               <h1 className="text-3xl md:text-5xl font-black text-white leading-tight mb-4 tracking-tighter font-serif">
-                {data.featured.title}
+                {data?.featured?.title}
               </h1>
               <p className="text-slate-200 text-sm md:text-lg line-clamp-3 mb-6 font-medium leading-relaxed">
-                {data.featured.ai_comment}
+                {data?.featured?.ai_comment}
               </p>
             </div>
           </motion.div>

@@ -24,4 +24,4 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 # Comando para inyectar el DNS del sistema y arrancar Nginx
-CMD ["/bin/sh", "-c", "export RESOLVER=$(awk 'BEGIN{ORS=\" \"} $1==\"nameserver\" {print $2}' /etc/resolv.conf) && sed -i \"s/RESOLVER_IP/$RESOLVER/g\" /etc/nginx/conf.d/default.conf && export BACKEND_VAL=${VITE_API_URL:-techcriollo-api} && export BACKEND_CLEAN=${BACKEND_VAL#http://} && export BACKEND_CLEAN=${BACKEND_CLEAN#https://} && sed -i \"s|BACKEND_HOST|$BACKEND_CLEAN|g\" /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+CMD ["/bin/sh", "-c", "export BACKEND_VAL=${VITE_API_URL:-techcriollo-api} && export BACKEND_CLEAN=${BACKEND_VAL#http://} && export BACKEND_CLEAN=${BACKEND_CLEAN#https://} && sed -i \"s|BACKEND_URL|$BACKEND_CLEAN:8000|g\" /etc/nginx/conf.d/default.conf && echo \"Waiting for backend $BACKEND_CLEAN:8000...\" && while ! nc -z $BACKEND_CLEAN 8000; do sleep 2; done && echo \"Backend up! Starting Nginx.\" && nginx -g 'daemon off;'"]

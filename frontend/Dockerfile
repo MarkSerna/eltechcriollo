@@ -12,7 +12,7 @@ COPY . .
 RUN npm run build
 
 # --- STAGE 2: Servir con Nginx ---
-FROM nginx:stable-alpine
+FROM nginx:stable
 
 # Copiar el build compilado desde el Stage 1
 COPY --from=build-stage /app/dist /usr/share/nginx/html
@@ -23,5 +23,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Exponer puerto estándar de servidor web
 EXPOSE 80
 
-# Comando para inyectar el DNS del sistema y arrancar Nginx
-CMD ["/bin/sh", "-c", "export BACKEND_VAL=${VITE_API_URL:-techcriollo-api} && export BACKEND_CLEAN=${BACKEND_VAL#http://} && export BACKEND_CLEAN=${BACKEND_CLEAN#https://} && sed -i \"s|BACKEND_URL|$BACKEND_CLEAN:8000|g\" /etc/nginx/conf.d/default.conf && echo \"Waiting for backend $BACKEND_CLEAN:8000...\" && while ! nc -z $BACKEND_CLEAN 8000; do sleep 2; done && echo \"Backend up! Starting Nginx.\" && nginx -g 'daemon off;'"]
+# Comando para inyectar el host del backend y arrancar Nginx inmediatamente
+CMD ["/bin/sh", "-c", "export BACKEND_VAL=${VITE_API_URL:-techcriollo-api} && export BACKEND_CLEAN=${BACKEND_VAL#http://} && export BACKEND_CLEAN=${BACKEND_CLEAN#https://} && sed -i \"s|BACKEND_URL|$BACKEND_CLEAN:8000|g\" /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

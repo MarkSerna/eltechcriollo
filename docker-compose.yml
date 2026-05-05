@@ -25,6 +25,8 @@ services:
     ports:
       - "8001:8000"
     restart: unless-stopped
+    networks:
+      - techcriollo-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
@@ -39,7 +41,7 @@ services:
       dockerfile: Dockerfile
     container_name: techcriollo-web
     environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:8001}
+      - API_BASE_URL=${API_BASE_URL:-http://techcriollo-api:8000}
     ports:
       - "8088:80"
     depends_on:
@@ -47,3 +49,9 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - techcriollo-network
+
+networks:
+  techcriollo-network:
+    driver: bridge

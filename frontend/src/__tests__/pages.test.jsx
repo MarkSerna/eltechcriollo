@@ -1,17 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
+import { ThemeProvider } from '../context/ThemeContext'
 import LoginPage from '../pages/LoginPage'
 
 vi.mock('axios', () => ({
   default: {
-    post: vi.fn(),
-    get: vi.fn()
+    post: vi.fn(() => Promise.resolve({ data: { status: 'ok' } })),
+    get: vi.fn(() => Promise.resolve({ data: {} }))
   }
 }))
 
-const renderWithRouter = (component) => {
-  return render(<BrowserRouter>{component}</BrowserRouter>)
+const renderWithTheme = (component) => {
+  return render(
+    <BrowserRouter>
+      <ThemeProvider>
+        {component}
+      </ThemeProvider>
+    </BrowserRouter>
+  )
 }
 
 describe('LoginPage', () => {
@@ -19,19 +26,19 @@ describe('LoginPage', () => {
     vi.clearAllMocks()
   })
 
-  it('renders login form', () => {
-    renderWithRouter(<LoginPage />)
-    expect(screen.getByPlaceholderText(/usuario/i)).toBeDefined()
-    expect(screen.getByPlaceholderText(/contraseña/i)).toBeDefined()
+  it('renders username input', () => {
+    renderWithTheme(<LoginPage />)
+    expect(screen.getByPlaceholderText(/tu usuario/i)).toBeDefined()
   })
 
-  it('renders login button', () => {
-    renderWithRouter(<LoginPage />)
-    expect(screen.getByRole('button', { name: /ingresar/i })).toBeDefined()
+  it('renders password input', () => {
+    renderWithTheme(<LoginPage />)
+    expect(screen.getByPlaceholderText('••••••••')).toBeDefined()
   })
 
-  it('has title', () => {
-    renderWithRouter(<LoginPage />)
-    expect(screen.getByText(/el tech criollo/i)).toBeDefined()
+  it('renders submit button', () => {
+    renderWithTheme(<LoginPage />)
+    expect(screen.getByRole('button', { name: /iniciar sesión/i })).toBeDefined()
   })
-})
+
+  })

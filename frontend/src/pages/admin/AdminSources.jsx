@@ -19,11 +19,7 @@ const AdminSources = () => {
     require_ai: false
   });
 
-  useEffect(() => {
-    fetchSources();
-  }, []);
-
-  const fetchSources = async () => {
+  async function fetchSources() {
     try {
       const res = await axios.get('/api/sources');
       setSources(res.data.sources);
@@ -32,7 +28,12 @@ const AdminSources = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSources();
+  }, []);
 
   const handleOpenModal = (source = null) => {
     if (source) {
@@ -62,7 +63,7 @@ const AdminSources = () => {
       }
       await fetchSources();
       setIsModalOpen(false);
-    } catch (err) {
+    } catch {
       alert("Error al guardar la fuente. Revisa los logs.");
     } finally {
       setIsSubmitting(false);
@@ -74,7 +75,7 @@ const AdminSources = () => {
     try {
       await axios.delete(`/api/sources/${id}`);
       await fetchSources();
-    } catch (err) {
+    } catch {
       alert("Error al eliminar la fuente.");
     }
   };

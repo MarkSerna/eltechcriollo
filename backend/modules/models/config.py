@@ -18,8 +18,31 @@ class TelegramConfig:
 @dataclass
 class SystemConfig:
     """Configuración base del sistema."""
-    secret_key: str = os.getenv("SECRET_KEY", "flash_default_secret_999")
-    admin_password: str = os.getenv("ADMIN_PASSWORD", "admin123")
+    secret_key: str = os.getenv("SECRET_KEY", "")
+    admin_username: str = os.getenv("ADMIN_USERNAME", "admin")
+    admin_password: str = os.getenv("ADMIN_PASSWORD", "")
+    session_cookie_name: str = os.getenv("SESSION_COOKIE_NAME", "techcriollo_session")
+    session_max_age: int = int(os.getenv("SESSION_MAX_AGE", "43200"))
+    session_secure: bool = os.getenv("SESSION_SECURE", "false").lower() == "true"
+    session_same_site: str = os.getenv("SESSION_SAME_SITE", "lax").lower()
+    cors_origins: List[str] = None
+
+    def __post_init__(self):
+        same_site = self.session_same_site.strip().lower()
+        if same_site not in {"lax", "strict", "none"}:
+            self.session_same_site = "lax"
+        else:
+            self.session_same_site = same_site
+
+        origins_raw = os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8088,http://127.0.0.1:8088"
+        )
+        self.cors_origins = [
+            origin.strip().rstrip("/")
+            for origin in origins_raw.split(",")
+            if origin.strip()
+        ]
 
 
 @dataclass

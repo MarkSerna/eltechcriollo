@@ -279,12 +279,20 @@ class DatabaseManager:
             with self.engine.connect() as conn:
                 res = conn.execute(text("SELECT COUNT(*) FROM admin_users")).scalar()
                 if res == 0:
-                    logger.info("🔐 Iniciando bootstrap de seguridad: Creando usuario 'admin' por defecto.")
-                    password = "admin123".encode('utf-8')
+                    username = (config.system.admin_username or "admin").strip()
+                    password_plain = (config.system.admin_password or "").strip()
+                    if not password_plain:
+                        logger.warning(
+                            "⚠️ No se creó el administrador inicial porque ADMIN_PASSWORD no está configurado."
+                        )
+                        return
+
+                    logger.info(f"🔐 Iniciando bootstrap de seguridad: creando usuario inicial '{username}'.")
+                    password = password_plain.encode('utf-8')
                     hashed = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
                     conn.execute(
                         text("INSERT INTO admin_users (username, password_hash) VALUES (:u, :p)"),
-                        {"u": "admin", "p": hashed}
+                        {"u": username, "p": hashed}
                     )
                     conn.commit()
         except Exception as e:

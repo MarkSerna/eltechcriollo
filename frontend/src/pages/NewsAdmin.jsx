@@ -8,11 +8,7 @@ const NewsAdmin = () => {
   const [search, setSearch] = useState('');
   const [processingUrls, setProcessingUrls] = useState(new Set());
 
-  useEffect(() => {
-    fetchNews();
-  }, []);
-
-  const fetchNews = async () => {
+  async function fetchNews() {
     setLoading(true);
     try {
       const res = await axios.get('/api/admin/news');
@@ -22,7 +18,12 @@ const NewsAdmin = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchNews();
+  }, []);
 
   const handleReprocess = async (url) => {
     setProcessingUrls(prev => new Set(prev).add(url));

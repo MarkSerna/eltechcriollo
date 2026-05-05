@@ -10,7 +10,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import date, timedelta
 from collections import OrderedDict, defaultdict
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Ensure module visibility
 sys.path.insert(0, str(Path(__file__).parent))
@@ -22,22 +22,44 @@ from modules.utils.logger import logger
 from modules.services.notification_manager import NotificationManager
 from modules.services.telegram_listener import TelegramBotListener
 from modules.models.config import config
-from modules.models.source import SourceConfig
+from modules.models.source import SourceConfig, ScrapedArticle
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-app = FastAPI(title="El Tech Criollo - Intelligence Hub")
+app = FastAPI(
+    title="El Tech Criollo - Intelligence Hub",
+    description="API para el centro de inteligencia de noticias automatizado",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {"name": "Auth", "description": "Endpoints de autenticación"},
+        {"name": "News", "description": "Noticias y artículos"},
+        {"name": "Admin", "description": "Administración del sistema"},
+        {"name": "System", "description": "Endpoints del sistema"}
+    ]
+)
 
 # --- Root Route for Health Check ---
-@app.get("/")
+@app.get("/", tags=["System"])
 async def root():
     return {"status": "ok", "message": "El Tech Criollo API is running"}
 
 # --- Security Configuration ---
-SECRET_KEY = config.system.secret_key
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+SECRET_KEY = config.system.secret_key or os.urandom(32).hex()
+if not config.system.secret_key:
+    logger.warning("⚠️ SECRET_KEY no configurado. Se usará una clave efímera para esta sesión.")
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    session_cookie=config.system.session_cookie_name,
+    max_age=config.system.session_max_age,
+    same_site=config.system.session_same_site,
+    https_only=config.system.session_secure,
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.system.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,8 +77,15 @@ def is_authenticated(request: Request):
     return True
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=3, max_length=64)
+    password: str = Field(min_length=8, max_length=256)
+
+class CreateAdminRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=64)
+    password: str = Field(min_length=10, max_length=256)
+
+class PublishTelegramRequest(BaseModel):
+    url: str = Field(min_length=10, max_length=2048)
 
 # --- Startup Task ---
 @app.on_event("startup")
@@ -116,27 +145,33 @@ def _group_by_day(articles: list) -> list:
 
 # --- API Endpoints ---
 
-@app.post("/api/login")
+@app.post("/api/login", tags=["Auth"])
 async def login(req_data: LoginRequest, request: Request):
     if db.verify_credentials(req_data.username, req_data.password):
+        request.session.clear()
         request.session["authenticated"] = True
         request.session["username"] = req_data.username
         logger.info(f"🔐 Sesión iniciada: {req_data.username}")
         return {"status": "ok", "user": {"username": req_data.username, "authenticated": True}}
     raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
-@app.get("/api/auth/me")
+@app.get("/api/auth/me", tags=["Auth"])
 async def get_me(request: Request):
     if request.session.get("authenticated"):
         return {"authenticated": True, "username": request.session.get("username")}
     return {"authenticated": False, "username": "Invitado"}
 
-@app.get("/api/logout")
+@app.get("/api/logout", tags=["Auth"])
 async def logout(request: Request):
     request.session.clear()
     return {"status": "ok"}
 
-@app.get("/api/news")
+@app.post("/api/logout", tags=["Auth"])
+async def logout_post(request: Request):
+    request.session.clear()
+    return {"status": "ok"}
+
+@app.get("/api/news", tags=["News"])
 async def get_news():
     articles = db.get_todays_articles()
     colombia = [a for a in articles if a.get("region") == "colombia"]
@@ -167,11 +202,11 @@ async def get_news():
         "days_feed": _group_by_day(articles)
     }
 
-@app.get("/api/stats")
+@app.get("/api/stats", tags=["Admin"])
 async def get_stats(authenticated: bool = Depends(is_authenticated)):
     articles = db.get_todays_articles()
     sources = db.get_all_sources()
-    
+
     next_scan = "N/A"
     job = scheduler.get_job('scraping_job')
     if job and job.next_run_time:
@@ -184,11 +219,11 @@ async def get_stats(authenticated: bool = Depends(is_authenticated)):
         "next_scan": next_scan
     }
 
-@app.get("/api/ai-stats")
+@app.get("/api/ai-stats", tags=["Admin"])
 async def get_ai_stats(authenticated: bool = Depends(is_authenticated)):
     return db.get_ai_stats()
 
-@app.get("/api/logs")
+@app.get("/api/logs", tags=["System"])
 async def get_logs(authenticated: bool = Depends(is_authenticated)):
     today_str = date.today().isoformat()
     log_file = config.paths.logs_dir / f"bot_{today_str}.log"
@@ -198,7 +233,7 @@ async def get_logs(authenticated: bool = Depends(is_authenticated)):
         lines = f.readlines()
     return {"logs": lines[-100:]}
 
-@app.get("/api/dictionary")
+@app.get("/api/dictionary", tags=["Admin"])
 async def get_dictionary(authenticated: bool = Depends(is_authenticated)):
     dict_path = config.paths.base_dir / "data" / "tech_dictionary.json"
     if not dict_path.exists(): return {"entries": []}
@@ -211,11 +246,30 @@ async def get_dictionary(authenticated: bool = Depends(is_authenticated)):
             entries.append({"entity": item, "type": group})
     return {"entries": entries}
 
-@app.get("/api/sources")
+@app.get("/api/sources", tags=["Admin"])
 async def get_sources(authenticated: bool = Depends(is_authenticated)):
     return {"sources": db.get_all_sources()}
 
-@app.post("/api/sources")
+@app.get("/api/admins", tags=["Admin"])
+async def get_admins(authenticated: bool = Depends(is_authenticated)):
+    return db.get_all_admins()
+
+@app.post("/api/admins", tags=["Admin"])
+async def create_admin(req_data: CreateAdminRequest, authenticated: bool = Depends(is_authenticated)):
+    username = req_data.username.strip()
+    password = req_data.password.strip()
+
+    if not username:
+        raise HTTPException(status_code=400, detail="Nombre de usuario inválido")
+    if len(password) < 10:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 10 caracteres")
+
+    success = db.create_admin_user(username, password)
+    if not success:
+        raise HTTPException(status_code=400, detail="No se pudo crear el administrador")
+    return {"success": True}
+
+@app.post("/api/sources", tags=["Admin"])
 async def add_source(request: Request, authenticated: bool = Depends(is_authenticated)):
     new_source = await request.json()
     if not new_source.get("name") or not new_source.get("url"):
@@ -223,23 +277,23 @@ async def add_source(request: Request, authenticated: bool = Depends(is_authenti
     db.add_source_db(new_source)
     return {"status": "ok", "sources": db.get_all_sources()}
 
-@app.put("/api/sources/{source_id}")
+@app.put("/api/sources/{source_id}", tags=["Admin"])
 async def update_source(source_id: int, request: Request, authenticated: bool = Depends(is_authenticated)):
     data = await request.json()
     db.update_source_db(source_id, data)
     return {"status": "ok", "sources": db.get_all_sources()}
 
-@app.delete("/api/sources/{source_id}")
+@app.delete("/api/sources/{source_id}", tags=["Admin"])
 async def delete_source(source_id: int, authenticated: bool = Depends(is_authenticated)):
     db.delete_source_db(source_id)
     return {"status": "ok", "sources": db.get_all_sources()}
 
-@app.post("/api/scrape")
+@app.post("/api/scrape", tags=["News"])
 async def trigger_scrape(background_tasks: BackgroundTasks, authenticated: bool = Depends(is_authenticated)):
     background_tasks.add_task(main_orchestrator)
     return {"status": "working"}
 
-@app.post("/api/admin/reprocess")
+@app.post("/api/admin/reprocess", tags=["Admin"])
 async def reprocess(request: Request, authenticated: bool = Depends(is_authenticated)):
     data = await request.json()
     url = data.get("url")
@@ -249,11 +303,37 @@ async def reprocess(request: Request, authenticated: bool = Depends(is_authentic
     success = await ai.reprocess_article_by_url(url)
     return {"status": "ok" if success else "error"}
 
-@app.get("/api/admin/news")
+@app.post("/api/admin/publish-telegram", tags=["Admin"])
+async def publish_telegram(req_data: PublishTelegramRequest, authenticated: bool = Depends(is_authenticated)):
+    article_data = db.get_article_by_url(req_data.url)
+    if not article_data:
+        raise HTTPException(status_code=404, detail="Noticia no encontrada")
+
+    article = ScrapedArticle(
+        title=article_data.get("title"),
+        link=article_data.get("url"),
+        source_name=article_data.get("source"),
+        summary=article_data.get("title") or ""
+    )
+    article.region = article_data.get("region")
+    article.department = article_data.get("department")
+    article.image_url = article_data.get("image_url")
+    article.ai_comment = article_data.get("ai_comment") or ""
+    article.reel_script = article_data.get("reel_script") or ""
+
+    nm = NotificationManager()
+    success = await nm.send_telegram_visual_news(article)
+    if not success:
+        raise HTTPException(status_code=502, detail="No se pudo publicar en Telegram")
+
+    db.mark_as_sent_to_telegram(req_data.url)
+    return {"status": "ok"}
+
+@app.get("/api/admin/news", tags=["Admin"])
 async def get_admin_news(authenticated: bool = Depends(is_authenticated)):
     return {"news": db.get_all_news_manager(limit=100)}
 
-@app.post("/api/test-telegram")
+@app.post("/api/test-telegram", tags=["System"])
 async def test_telegram(authenticated: bool = Depends(is_authenticated)):
     nm = NotificationManager()
     success = await nm.send_telegram_message("🚀 Test de Conexión Admin")

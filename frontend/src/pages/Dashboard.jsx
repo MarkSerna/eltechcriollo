@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Newspaper, Globe2, Cpu, MapPin, Search } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Search } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import NewsCard from '../components/NewsCard';
 import NewsModal from '../components/NewsModal';
 
@@ -12,20 +12,21 @@ const Dashboard = () => {
   const [search, setSearch] = useState('');
   const [selectedArticle, setSelectedArticle] = useState(null);
 
-  useEffect(() => {
-    fetchNews();
-  }, []);
-
-  const fetchNews = async () => {
+  async function fetchNews() {
     try {
       const res = await axios.get('/api/news');
       setData(res.data);
-      setLoading(false);
     } catch (err) {
       console.error("Error fetching news:", err);
+    } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchNews();
+  }, []);
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-white dark:bg-slate-900">
@@ -38,8 +39,16 @@ const Dashboard = () => {
     articles: day.articles.filter(a => {
       const matchesSearch = a.title.toLowerCase().includes(search.toLowerCase()) || 
                           a.source_name.toLowerCase().includes(search.toLowerCase());
-      const matchesRegion = filter === 'all' || a.region === filter;
-      return matchesSearch && matchesRegion;
+      const isAiTopic = [a.title, a.ai_comment, a.reel_script]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes('ia');
+      const matchesFilter =
+        filter === 'all' ||
+        a.region === filter ||
+        (filter === 'ai' && isAiTopic);
+      return matchesSearch && matchesFilter;
     })
   })).filter(day => day.articles.length > 0);
 
@@ -77,7 +86,7 @@ const Dashboard = () => {
               { id: 'all', label: 'TODO' },
               { id: 'colombia', label: 'COLOMBIA' },
               { id: 'global', label: 'GLOBAL' },
-              { id: 'IA', label: 'IA & FUTURO' }
+              { id: 'ai', label: 'IA & FUTURO' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -96,9 +105,7 @@ const Dashboard = () => {
 
         {/* Featured Card */}
         {data?.featured && !search && filter === 'all' && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div 
             className="mb-12 relative h-[500px] rounded-3xl overflow-hidden group cursor-pointer shadow-2xl"
             onClick={() => setSelectedArticle(data?.featured)}
           >
@@ -119,7 +126,7 @@ const Dashboard = () => {
                 {data?.featured?.ai_comment}
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Main Feed */}

@@ -3,32 +3,47 @@ name: techcriollo
 services:
   # --- Backend Service (FastAPI + Playwright) ---
   techcriollo-api:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: techcriollo-api
     env_file:
       - ./backend/.env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://techcriollo:password@localhost:5432/techcriollo}
+      - OLLAMA_URL=${OLLAMA_URL:-host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma4:31b-cloud}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - RENDER=${RENDER:-false}
+      - SECRET_KEY=${SECRET_KEY:-changeme-production-secret-key}
     volumes:
-      # Persistencia de datos críticos
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
       - ./backend/reports:/app/reports
       - ./backend/static:/app/static
-    # Exponemos el puerto 8001 en el host para evitar conflictos (mapeado al 8000 interno)
     ports:
       - "8001:8000"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # --- Frontend Service (React + Nginx) ---
   techcriollo-web:
-    build: 
+    build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: techcriollo-web
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8001}
     ports:
-      # Mantenemos el puerto 8088 que el usuario ya conoce para acceder vía navegador
       - "8088:80"
     depends_on:
       - techcriollo-api
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

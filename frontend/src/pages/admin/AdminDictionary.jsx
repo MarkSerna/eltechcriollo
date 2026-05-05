@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Tag, Cpu, BookMarked } from 'lucide-react';
+import { Search, Cpu, BookMarked } from 'lucide-react';
 
 const AdminDictionary = () => {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    fetchDict();
-  }, []);
-
-  const fetchDict = async () => {
+  async function fetchDict() {
     try {
       const res = await axios.get('/api/dictionary');
       setEntries(res.data.entries);
@@ -20,7 +16,12 @@ const AdminDictionary = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchDict();
+  }, []);
 
   const filtered = entries.filter(e => 
     e.entity.toLowerCase().includes(search.toLowerCase()) ||

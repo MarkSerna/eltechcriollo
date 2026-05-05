@@ -1,6 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { X, ExternalLink, Calendar, MessageSquareQuote } from 'lucide-react';
+import { X, ExternalLink, Calendar } from 'lucide-react';
 
 const NewsModal = ({ article, onClose }) => {
   if (!article) return null;
@@ -19,17 +18,11 @@ const NewsModal = ({ article, onClose }) => {
     : '';
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
       onClick={onClose}
     >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+      <div
         className="bg-white dark:bg-slate-900 w-full max-w-4xl lg:max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl relative flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
@@ -89,8 +82,8 @@ const NewsModal = ({ article, onClose }) => {
             </a>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 

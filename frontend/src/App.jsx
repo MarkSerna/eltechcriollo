@@ -17,20 +17,21 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const location = useLocation();
 
-  useEffect(() => {
-    checkAuth();
-  }, [location.pathname]);
-
-  const checkAuth = async () => {
+  async function checkAuth() {
     try {
       const res = await axios.get('/api/auth/me');
       setUser(res.data);
-    } catch (err) {
+    } catch {
       setUser({ authenticated: false, username: '' });
     } finally {
       setAuthLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    checkAuth();
+  }, [location.pathname]);
 
   const handleLoginSuccess = (userData) => {
     setUser({ authenticated: true, ...userData });
@@ -38,7 +39,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await axios.get('/api/logout');
+      await axios.post('/api/logout');
       setUser({ authenticated: false, username: '' });
       // Forzamos redirección al portal público tras cerrar sesión
       window.location.href = '/';

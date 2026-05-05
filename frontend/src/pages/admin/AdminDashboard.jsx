@@ -18,14 +18,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-    // Refresco automático cada 30 segundos
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       const [resStats, resAi] = await Promise.all([
         axios.get('/api/stats'),
@@ -38,7 +31,14 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleManualScan = async () => {
     if (scanning) return;
@@ -98,28 +98,24 @@ const AdminDashboard = () => {
           label="Noticias Hoy"
           value={stats?.articles_today}
           trend="Actividad detectada"
-          color="blue"
         />
         <StatCard 
           icon={<Rss className="text-purple-500" />}
           label="Fuentes"
           value={stats?.sources_count}
           trend="Scrapers operativos"
-          color="purple"
         />
         <StatCard 
           icon={<Zap className={aiHealth?.total > 0 ? "text-emerald-500" : "text-amber-500"} />}
           label="Salud IA (1h)"
           value={aiHealth?.total > 0 ? (aiHealth['429'] > 0 ? 'Limitado' : 'Óptimo') : 'Inactivo'}
           trend={`${aiHealth?.total || 0} llamadas / ${aiHealth?.['429'] || 0} errores`}
-          color={aiHealth?.total > 0 ? (aiHealth['429'] > 0 ? 'amber' : 'emerald') : 'slate'}
         />
         <StatCard 
           icon={<Timer className="text-rose-500" />}
           label="Próximo Scan"
           value={stats?.next_scan ? new Date(stats.next_scan).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
           trend="Basado en Scheduler"
-          color="rose"
         />
       </div>
 
@@ -178,7 +174,7 @@ const AdminDashboard = () => {
   );
 };
 
-const StatCard = ({ icon, label, value, trend, color }) => (
+const StatCard = ({ icon, label, value, trend }) => (
   <div className="bg-white dark:bg-slate-950 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:translate-y-[-4px] transition-all group overflow-hidden relative">
     <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity transform group-hover:scale-125 duration-500">
       {React.cloneElement(icon, { size: 120 })}

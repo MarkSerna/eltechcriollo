@@ -8,20 +8,13 @@ const AdminLogs = () => {
   const logContainerRef = useRef(null);
 
   useEffect(() => {
-    fetchLogs();
-    // Auto-refresh cada 15 segundos para monitoreo en vivo
-    const interval = setInterval(fetchLogs, 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     // Auto-scroll al final cuando llegan nuevos logs
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
-  const fetchLogs = async () => {
+  async function fetchLogs() {
     try {
       const res = await axios.get('/api/logs');
       setLogs(res.data.logs);
@@ -30,7 +23,14 @@ const AdminLogs = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getLogColor = (line) => {
     if (line.includes('ERROR')) return 'text-rose-400 font-bold';

@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Coffee, Sun, Moon, Lock, Mail, Podcast, Cpu } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sun, Moon, Lock, Mail, Podcast, Cpu } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+
+function getFormattedDate() {
+  const d = new Date();
+  const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+  const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+  return `${days[d.getDay()]}, ${d.getDate()} DE ${months[d.getMonth()]} DE ${d.getFullYear()}`;
+}
 
 const Navbar = ({ isAdmin, onLoginClick }) => {
   const { theme, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
-  const location = useLocation();
-
-  const [currentDate, setCurrentDate] = useState('');
+  const [currentDate] = useState(() => getFormattedDate());
 
   useEffect(() => {
-    const d = new Date();
-    const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
-    const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-    
-    const formatted = `${days[d.getDay()]}, ${d.getDate()} DE ${months[d.getMonth()]} DE ${d.getFullYear()}`;
-    setCurrentDate(formatted);
-
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };

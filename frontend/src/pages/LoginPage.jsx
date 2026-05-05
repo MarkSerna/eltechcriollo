@@ -23,7 +23,7 @@ const LoginPage = ({ onLoginSuccess }) => {
         navigate('/admin');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Error de conexión o credenciales');
+      setError(err.response?.data?.detail || err.response?.data?.error || 'Error de conexión o credenciales');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,5 @@
 import React from 'react';
 import { ExternalLink, MessageSquareQuote, Calendar, Send } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const NewsCard = ({ article, onClick }) => {
   const { title, source_name, image_url, ai_comment, created_at, telegram_sent } = article;
@@ -12,8 +11,7 @@ const NewsCard = ({ article, onClick }) => {
     : 'RECIENTE';
 
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
+    <div
       className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
       onClick={() => onClick(article)}
     >
@@ -66,7 +64,7 @@ const NewsCard = ({ article, onClick }) => {
           <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-primary-light transition-colors" />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

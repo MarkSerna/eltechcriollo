@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ShieldCheck, UserPlus, Users, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, UserPlus, Users, Lock, AlertCircle, CheckCircle2, RefreshCcw } from 'lucide-react';
 
 const AdminSecurity = () => {
   const [admins, setAdmins] = useState([]);
@@ -9,11 +9,7 @@ const AdminSecurity = () => {
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState(null);
 
-  useEffect(() => {
-    fetchAdmins();
-  }, []);
-
-  const fetchAdmins = async () => {
+  async function fetchAdmins() {
     try {
       const res = await axios.get('/api/admins');
       setAdmins(res.data);
@@ -22,7 +18,12 @@ const AdminSecurity = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchAdmins();
+  }, []);
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
@@ -37,7 +38,7 @@ const AdminSecurity = () => {
       } else {
         setMsg({ type: 'error', text: 'No se pudo crear el administrador' });
       }
-    } catch (err) {
+    } catch {
       setMsg({ type: 'error', text: 'Fallo de conexión con el servicio de seguridad' });
     } finally {
       setSubmitting(false);

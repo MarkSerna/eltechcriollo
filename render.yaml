@@ -9,9 +9,13 @@ services:
     healthCheckPath: /
     envVars:
       - key: PORT
-        value: 8000
+        value: "8000"
       - key: AI_PROVIDER
         value: gemini
+      - key: RENDER
+        value: "true"
+      - key: OLLAMA_URL
+        value: host.docker.internal:11434
       - key: DATABASE_URL
         sync: false
       - key: TELEGRAM_BOT_TOKEN
@@ -24,6 +28,8 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: CORS_ORIGINS
+        value: "https://techcriollo-web.onrender.com"
 
   # --- Web Frontend (React + Vite) ---
   - type: web
@@ -33,8 +39,7 @@ services:
     dockerfilePath: Dockerfile
     plan: free
     envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: techcriollo-api
-          type: web
-          property: host
+      - key: BACKEND_URL
+        value: "https://techcriollo-api.onrender.com"
+      - key: NGINX_PORT
+        value: "80"

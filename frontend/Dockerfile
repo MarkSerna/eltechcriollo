@@ -3,24 +3,32 @@ FROM node:20-slim AS build-stage
 
 WORKDIR /app
 
-# Instalar dependencias
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copiar código y compilar para producción
 COPY . .
 RUN npm run build
 
 # --- STAGE 2: Servir con Nginx ---
-FROM nginx:stable
+FROM nginx:stable-alpine
 
-# Copiar el build compilado desde el Stage 1
 COPY --from=build-stage /app/dist /usr/share/nginx/html
-
-# Copiar configuración personalizada de Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Exponer puerto estándar de servidor web
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Usar variable de entorno BACKEND_URL o valor por defecto
+CMD ["/bin/sh", "-c", "
+  BACKEND_URL=${BACKEND_URL:-https://techcriollo-api.onrender.com}
+  # Extraer host y puerto de la URL
+  BACKEND_HOST=$(echo $BACKEND_URL | sed 's|https://||' | sed 's|http://||' | cut -d':' -f1)
+  BACKEND_PORT=$(echo $BACKEND_URL | grep ':' | cut -d':' -f3 || echo '443')
+  if [ -z \"$BACKEND_PORT\" ] || [ \"$BACKEND_PORT\" = \"$BACKEND_HOST\" ]; then
+    BACKEND_PORT=443
+  fi
+  echo \"Configurando proxy hacia: $BACKEND_HOST:$BACKEND_PORT\"
+  # Actualizar nginx.conf
+  sed -i \"s|set \\$backend \\\"techcriollo-api\\\"|set \\$backend \\\"$BACKEND_HOST\\\"|g\" /etc/nginx/conf.d/default.conf
+  sed -i \"s|set \\$backend_port 8000|set \\$backend_port $BACKEND_PORT|g\" /etc/nginx/conf.d/default.conf
+  nginx -g 'daemon off;'
+"]
